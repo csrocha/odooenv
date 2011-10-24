@@ -1,0 +1,104 @@
+oerpenv - Tool to administrate OpenERP environments
+Cristian S. Rocha (c) 2011-2015
+cristian.rocha@moldeointeractive.com.ar
+
+This code is distributed under the MIT license.
+
+Requirements:
+-------------
+
+None for now.
+
+Installation:
+-------------
+
+Should suffice with doing:
+
+ python setup.py install
+
+Then the oerpenv command line is available with the following sub-commands:
+
+
+erpenv [command] [options]
+The OpenERP environment administrator help you to administrate OpenERP environments. You can use the following commands.
+
+        oerpenv resetconf               Reset configuration values. 
+        
+        oerpenv enable [addons]         Enabel addons on the environment. Create a symbolic link.
+        
+        oerpenv show [object]           Show addon information.
+        
+        oerpenv update                  Update sources. 
+        
+        oerpenv newenv [name]           Create a new python environment
+        
+        oerpenv dummy [addon]           Create a dummy addon. Useful to create new addon.
+        
+        oerpenv search [object]         Search addon with this object.
+        
+        oerpenv list-addons             List all availables addons in sources.
+        
+        oerpenv add [name] [repository] Add a branch to the sources list
+        
+        oerpenv init [path]             Init an environment to the path. 
+        
+        oerpenv client                  Execute the server in test mode for this addon.
+        
+        oerpenv install [env]           Install all software in the environment
+        
+        oerpenv test [addon]            Execute the server in test mode for this addon.
+        
+        oerpenv config                  Create client and server configuration files. 
+        
+All configurations are stored in the environment.conf file. You can setup it by hand or using the available commands.
+
+Usage:
+------
+
+ Testing a module:
+ -----------------
+
+To create a simple OpenERP instance execute the following commands in some work directory.
+
+$ oerpenv init openerp_env
+$ cd openerp_env
+$ oerpenv update
+$ oerpenv install
+$ oerpenv list-addons
+
+Search for an addon to test, like hr_attendance
+
+$ oerpenv enable hr_attendance
+$ oerpenv test hr_attendance
+
+Open other terminal and in the same environment directory execute:
+
+$ oerpenv client
+
+Then the client will open and you can work.
+
+ Testing more than one module:
+ ----------------------------
+
+If you need test more than one module you can create a dummy addon in the following way:
+
+$ oerpenv dummy hr_test
+
+In the output you can find the source path. There you can found the __openerp__.py file. Append the modules you want to test in the 'depends' field, in this example will use hr_attendace and hr_contract. If you done all right you can execute the follwing command without errors:
+
+$ oerpenv enable hr_test
+
+Then you can execute the server in mode test again, for the new module.
+
+$ oerpenv test hr_test
+
+ Searching for an object in source code:
+ --------------------------------------
+
+To search the source code of a code you can use the command 'search'.
+
+ Display addon information:
+ -------------------------
+
+To show addon information, like description, declarated objects and path to the source you can use the command 'show'.
+

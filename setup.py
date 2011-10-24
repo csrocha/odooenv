@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from distutils.core import setup
+from setuptools import setup
 
 setup(name='oerpenv',
             version='1.0',
@@ -8,7 +8,7 @@ setup(name='oerpenv',
             author='Cristian S. Rocha',
             author_email='cristian.rocha@moldeointeractive.com.ar',
             url='http://www.moldeointeractive.com.ar/',
-            packages=['oerpenv'],
             scripts=['scripts/oerpenv'],
+#           packages=['oerpenv'],
            )
 
