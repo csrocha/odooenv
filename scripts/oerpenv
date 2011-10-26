@@ -333,8 +333,8 @@ def main():
         print _help()
         return False
 
-    if command in commands:
-        sys.exit(commands[command](*args))
+    if command in commands_dict:
+        sys.exit(commands_dict[command](*args))
     else:
         print _help()
         return False
