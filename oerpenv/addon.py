@@ -77,7 +77,10 @@ class Addon:
                 Return the website of the addon.
                 """
                 self.read_description()
-                return self._description['website']
+                if 'website' in self._description:
+                    return self._description['website']
+                else:
+                    return None
 
         @property
         def author(self):

@@ -39,6 +39,8 @@ class OpenERPEnvironment:
         Arguments:
         config_filename -- Full path to the configuration file.
         """
+        if not sources is None and not exists(sources):
+            makedirs(sources)
         if exists(config_filename):
             self.config_filename = abspath(config_filename)
             self.root_path = dirname(self.config_filename)
@@ -48,6 +50,8 @@ class OpenERPEnvironment:
             if not exists(self.root_path):
                 makedirs(self.root_path)
             self._config = defaults.environment_configuration
+            if not version in defaults.version_configuration:
+                raise RuntimeError('Version not available')
             self._config.update(defaults.version_configuration[version])
             self._config['Environment.root'] = self.root_path
             if not sources is None:

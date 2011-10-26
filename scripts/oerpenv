@@ -6,7 +6,7 @@
 import sys, os, ConfigParser
 import virtualenv
 from virtualenv import subprocess
-from optparse import OptionParser
+import argparse
 from os.path import abspath, exists, join, basename, dirname
 from os import remove
 import signal
@@ -14,29 +14,27 @@ import signal
 from oerpenv import defaults, tools
 from oerpenv import OpenERPEnvironment, Addon
 
-def init(path=None, sources=None, config_filename=defaults.config_filename, version=defaults.version):
+def init(args):
     """
-    oerpenv init [path]             Init an environment in the work path or in the declared path. 
+    Init an environment in the work path or in the declared path. 
     """
     print "Init environment."
+    
+    path = args.path
+    repository = args.repository
+    config_filename = args.config
+    version = args.version
+
     if path is not None:
         config_filename = join(abspath(path), config_filename)
 
-    sources = abspath(sources) if sources is not None else None
+    repository = abspath(repository) if repository is not None else None
 
-    oerpenv = OpenERPEnvironment(config_filename=config_filename, sources=sources, init=True)
-
-    for operation, local_branch_url, remote_branch_url in oerpenv.update(iterate=True):
-        if operation == 'update':
-            print "Updating %s from %s" % (local_branch_url, remote_branch_url)
-        if operation == 'create':
-            print "Creating %s from %s" % (local_branch_url, remote_branch_url)
-
-def update(config_filename=defaults.config_filename, version=defaults.version,oerpenv=None):
-    """
-    oerpenv update                  Update sources. 
-    """
-    oerpenv = OpenERPEnvironment(config_filename=config_filename)
+    try:
+        oerpenv = OpenERPEnvironment(config_filename=config_filename, sources=repository, init=True, version=version)
+    except RuntimeError, s:
+        print s
+        return False
 
     for operation, local_branch_url, remote_branch_url in oerpenv.update(iterate=True):
         if operation == 'update':
@@ -44,58 +42,69 @@ def update(config_filename=defaults.config_filename, version=defaults.version,oe
         if operation == 'create':
             print "Creating %s from %s" % (local_branch_url, remote_branch_url)
 
-def create(name=defaults.python_environment, config_filename=defaults.config_filename):
+def update(args):
     """
-    oerpenv create {name}           Create a new python environment.
+    Update sources. 
     """
-    oerpenv = OpenERPEnvironment(config_filename=config_filename)
+    oerpenv = OpenERPEnvironment(config_filename=args.config)
 
-    print "Creating environment %s" % name
+    for operation, local_branch_url, remote_branch_url in oerpenv.update(iterate=True):
+        if operation == 'update':
+            print "Updating %s from %s" % (local_branch_url, remote_branch_url)
+        if operation == 'create':
+            print "Creating %s from %s" % (local_branch_url, remote_branch_url)
 
-    oerpenv.create_python_environment(name)
+def create(args):
+    """
+    Create a new python environment.
+    """
+    oerpenv = OpenERPEnvironment(config_filename=args.config)
 
-def add(branch_name, branch_path, config_filename=defaults.config_filename):
+    print "Creating environment %s" % args.name[0]
+
+    oerpenv.create_python_environment(args.name[0])
+
+def add(args):
     """
-    oerpenv add {name} {url}        Add a branch with to the sources list.
+    Add a branch with to the sources list.
     """
-    oerpenv = OpenERPEnvironment(config_filename=config_filename)
+    oerpenv = OpenERPEnvironment(config_filename=args.config)
     oerpenv.load()
 
-    oerpenv.add_repository(branch_name, branch_path)
+    oerpenv.add_repository(args.name[0], args.url[0])
 
     oerpenv.save()
 
-def install(envname=defaults.python_environment,config_filename=defaults.config_filename):
+def install(args):
     """
-    oerpenv install [env]           Install all software in the default environment of in the declared.
+    Install all software in the default environment of in the declared.
     """
-    oerpenv = OpenERPEnvironment(config_filename=config_filename)
-    oerpenv.set_python_environment(envname)
+    oerpenv = OpenERPEnvironment(config_filename=args.config)
+    oerpenv.set_python_environment(args.environment)
 
     for item in oerpenv.install():
         print "Installing %s" % item
-        oerpenv.install()
 
-def list_installables(envname=defaults.python_environment, config_filename=defaults.config_filename):
+def list_installables(args):
     """
-    oerpenv list-installables       List all availables applications in sources.
+    List all availables applications in sources.
     """
-    oerpenv = OpenERPEnvironment(config_filename=config_filename)
-    oerpenv.set_python_environment(envname)
+    oerpenv = OpenERPEnvironment(config_filename=args.config)
+    oerpenv.set_python_environment(args.environment)
 
     for application in oerpenv.installables:
         print "Application:", application.name
         print "Version:", application.fullname
         print "Description:", application.description
 
-def list_addons(filter_string = None, envname=defaults.python_environment, config_filename=defaults.config_filename):
+def list_addons(args):
     """
-    oerpenv list-addons [expresion] List availables addons in sources. Show all addons if not filter expression declared.
+    List availables addons in sources. Show all addons if not filter expression declared.
     """
-    oerpenv = OpenERPEnvironment(config_filename=config_filename)
-    oerpenv.set_python_environment(envname)
+    oerpenv = OpenERPEnvironment(config_filename=args.config)
+    oerpenv.set_python_environment(args.environment)
 
-    for addon in oerpenv.addons(filter_string):
+    for addon in oerpenv.addons(args.filter_string):
         state = ''
         if exists(join(oerpenv.get_addonsourcepath(), addon.token)):
                 state = 'e'
@@ -104,20 +113,19 @@ def list_addons(filter_string = None, envname=defaults.python_environment, confi
                 
         print "%35ls :%s: %s" % (addon.token, state, addon.name)
 
-def enable_addon(addon_token, envname=defaults.python_environment, config_filename=defaults.config_filename):
+def enable_addon(args):
     """
-    oerpenv enable {addon}          Enabel addons on the environment. Create a symbolic link.
+    Enabel addons on the environment. Create a symbolic link.
     """
-    oerpenv = OpenERPEnvironment(config_filename=config_filename)
-    oerpenv.load()
-    oerpenv.set_python_environment(envname)
+    oerpenv = OpenERPEnvironment(config_filename=args.config)
+    oerpenv.set_python_environment(args.environment)
 
     addons_path = oerpenv.get_addonsourcepath()
 
     addons = dict([ (addon.token, addon) for addon in oerpenv.addons() ])
     addons_set = set(addons.keys())
 
-    to_install = set([ addon_token ])
+    to_install = set( args.addon )
 
     if not exists(addons_path):
         print "Execute 'oerpenv install' before 'oerpenv enable'"
@@ -128,19 +136,19 @@ def enable_addon(addon_token, envname=defaults.python_environment, config_filena
         return False
 
     while to_install and to_install <= addons_set:
-        addon_token = to_install.pop()
+        args.addon = to_install.pop()
 
-        addon = addons[addon_token]
+        addon = addons[args.addon]
 
         to_install.update(addon.depends)
 
-        where_install = join(addons_path, addon_token) 
+        where_install = join(addons_path, args.addon) 
 
         if exists(where_install):
-            print "Updating %s" % addon_token
+            print "Updating %s" % args.addon
             os.remove(where_install)
         else:
-            print "Installing %s" % addon_token
+            print "Installing %s" % args.addon
 
         os.symlink(addon.path, where_install)
 
@@ -148,35 +156,33 @@ def enable_addon(addon_token, envname=defaults.python_environment, config_filena
 
     return True
 
-def disable_addon(addon_token, envname=defaults.python_environment, config_filename=defaults.config_filename):
+def disable_addon(args):
     """
-    oerpenv disable {addon}         Disable addons on the environment. Remove a symbolic link.
+    Disable addons on the environment. Remove a symbolic link.
     """
-    oerpenv = OpenERPEnvironment(config_filename=config_filename)
-    oerpenv.load()
-    oerpenv.set_python_environment(envname)
+    oerpenv = OpenERPEnvironment(config_filename=args.config)
+    oerpenv.set_python_environment(args.environment)
 
     addons_path = oerpenv.get_addonsourcepath()
 
-    addon_path = join(addons_path, addon_token)
+    addon_path = join(addons_path, args.addon[0])
 
     if exists(addon_path):
-        print "Removing %s." % addon_token
+        print "Removing %s." % args.addon[0]
         remove(addon_path)
     else:
-        print "Addon %s not enabled." % addon_token
+        print "Addon %s not enabled." % args.addon[0]
 
     return True
 
-def create_dummy_addon(addon_token, envname=defaults.python_environment, config_filename=defaults.config_filename):
+def create_dummy_addon(args):
     """
-    oerpenv dummy {addon}           Create a dummy addon. Useful to create new addon.
+    Create a dummy addon. Useful to create new addon.
     """
-    oerpenv = OpenERPEnvironment(config_filename=config_filename)
-    oerpenv.load()
-    oerpenv.set_python_environment(envname)
+    oerpenv = OpenERPEnvironment(config_filename=args.config)
+    oerpenv.set_python_environment(args.environment)
 
-    source_path = join(oerpenv.sources_path, addon_token)
+    source_path = join(oerpenv.sources_path, args.addon[0])
     if exists(source_path):
         print "Exists directory %s. Please remove it if you want a new dummy addon" % source_path
         return
@@ -198,77 +204,74 @@ def create_dummy_addon(addon_token, envname=defaults.python_environment, config_
     with open(join(source_path, oerpenv.desc_filename), 'w') as file:
         pp = pprint.PrettyPrinter(indent=4, stream=file)
         file.write(defaults.openerp_header)
-        pp.pprint(defaults.addon_description(addon_token))
+        pp.pprint(defaults.addon_description(args.addon[0]))
         file.write(defaults.openerp_footer)
 
     oerpenv.save()
 
-def test_addon(addon_token, envname=defaults.python_environment, config_filename=defaults.config_filename):
+def test_addon(args):
     """
-    oerpenv test {addon}            Execute the server in test mode for this addon.
+    Execute the server in test mode for this addon.
     """
-    oerpenv = OpenERPEnvironment(config_filename=config_filename)
-    oerpenv.load()
-    oerpenv.set_python_environment(envname)
+    oerpenv = OpenERPEnvironment(config_filename=args.config)
+    oerpenv.set_python_environment(args.environment)
     addons_path = oerpenv.get_addonsourcepath()
 
-    dbname = "test_db_%s" % ''.join(addon_token)
+    dbname = "test_db_%s" % '_'.join(args.addon)
 
     print "Create db %s" % dbname
     tools.create_database(dbname);
 
-    print "Running test %s" % addon_token
+    print "Running test %s" % ','.join(args.addon)
     try:
-        oerpenv.execute('openerp-server', ['--init', addon_token, '-d', dbname, '--test-report-directory', oerpenv.reports_path ])
+        initarg = sum([['--init', v] for v in args.addon ], [])
+        oerpenv.execute('openerp-server', initarg + ['-d', dbname, '--test-report-directory', oerpenv.reports_path ])
     except KeyboardInterrupt:
         print "KeyboardInterrupt event."
 
     print "Drop db %s" % dbname
     tools.drop_database(dbname);
 
-def start_client(envname=defaults.python_environment, config_filename=defaults.config_filename):
+def start_client(args):
     """
-    oerpenv client                  Execute the server in test mode for this addon.
+    Execute the server in test mode for this addon.
     """
-    oerpenv = OpenERPEnvironment(config_filename=config_filename)
-    oerpenv.load()
-    oerpenv.set_python_environment(envname)
+    oerpenv = OpenERPEnvironment(config_filename=args.config)
+    oerpenv.set_python_environment(args.environment)
 
     client_config_filename = join(oerpenv.env_path, 'etc', oerpenv.client_config_filename)
 
-    print "Running client in environment %s" % envname
+    print "Running client in environment %s" % args.environment
     try:
         oerpenv.execute('openerp-client', ['-c', client_config_filename])
     except KeyboardInterrupt:
         print "KeyboardInterrupt event."
 
-def search_addon(objectname, envname=defaults.python_environment, config_filename=defaults.config_filename):
+def search_addon(args):
     """
-    oerpenv search {object}         Search addon with this object.
+    Search addon with this object.
     """
-    oerpenv = OpenERPEnvironment(config_filename=config_filename)
-    oerpenv.load()
-    oerpenv.set_python_environment(envname)
+    oerpenv = OpenERPEnvironment(config_filename=args.config)
+    oerpenv.set_python_environment(args.environment)
 
     print "Definition:"
-    for addon in oerpenv.addons(object_filter=objectname):
+    for addon in oerpenv.addons(object_filter=args.objects[0]):
         print "%35s:%s" % (addon.token, addon.name)
 
     print "Inherited:"
-    for addon in oerpenv.addons(inherited_filter=objectname):
+    for addon in oerpenv.addons(inherited_filter=args.objects[0]):
         print "%35s:%s" % (addon.token, addon.name)
  
-def show_addon(addonname, envname=defaults.python_environment, config_filename=defaults.config_filename):
+def show_addon(args):
     """
-    oerpenv show {addon}            Show addon information.
+    Show addon information.
     """
-    oerpenv = OpenERPEnvironment(config_filename=config_filename)
-    oerpenv.load()
-    oerpenv.set_python_environment(envname)
+    oerpenv = OpenERPEnvironment(config_filename=args.config)
+    oerpenv.set_python_environment(args.environment)
 
-    addons = dict([ (addon.token, addon) for addon in oerpenv.addons(token_filter=addonname) ])
-    if addonname in addons:
-        addon = addons[addonname]
+    addons = dict([ (addon.token, addon) for addon in oerpenv.addons(token_filter=args.objects[0]) ])
+    if args.objects[0] in addons:
+        addon = addons[args.objects[0]]
         print "Token:", addon.token
         print "Name:", addon.name
         print "Version:", addon.version
@@ -322,7 +325,177 @@ def _help():
     return s
 
 def main():
-    parser = OptionParser()
+    parser = argparse.ArgumentParser()
+
+    subparsers = parser.add_subparsers(help='commands',
+                                       description='The OpenERP environment administrator help you to administrate OpenERP environments. You can use the following commands.')
+
+    # The init command
+    parser_init = subparsers.add_parser('init', help=init.__doc__)
+
+    parser_init.add_argument('path', metavar='path', type=str, nargs='?',
+                             help='Path to the environment to init.')
+    parser_init.add_argument('--repository', '-r', metavar='repository', type=str, nargs='?',
+                             help='Local repository of sources.')
+    parser_init.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
+                             help='Environment configuration file.')
+    parser_init.add_argument('--version', '-v', metavar='version', type=str, nargs='?',
+                             help='OpenERP version to setup')
+    parser_init.set_defaults(func=init,
+                             config=defaults.config_filename,
+                             version=defaults.version)
+
+    # The update command
+    parser_update = subparsers.add_parser('update', help=update.__doc__)
+    parser_update.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
+                             help='Environment configuration file.')
+    parser_update.set_defaults(func=update,
+                             config=defaults.config_filename)
+
+    # The create command
+    parser_create = subparsers.add_parser('create', help=create.__doc__)
+    parser_create.add_argument('name', metavar='name', type=str, nargs=1,
+                             help='Name for the python environment.')
+    parser_create.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
+                             help='Environment configuration file.')
+    parser_create.set_defaults(func=create,
+                             config=defaults.config_filename)
+
+    # The add command
+    parser_add = subparsers.add_parser('add', help=add.__doc__)
+    parser_add.add_argument('name', metavar='name', type=str, nargs=1,
+                             help='Name of the branch.')
+    parser_add.add_argument('url', metavar='url', type=str, nargs=1,
+                             help='URL to the repository.')
+    parser_add.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
+                             help='Environment configuration file.')
+    parser_add.set_defaults(func=add,
+                             config=defaults.config_filename)
+
+    # The install command
+    parser_install = subparsers.add_parser('install', help=install.__doc__)
+    parser_install.add_argument('--environment', '-e', metavar='environment', type=str, nargs='?',
+                             help='Python environment name.')
+    parser_install.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
+                             help='Environment configuration file.')
+    parser_install.set_defaults(func=install,
+                             environment=defaults.python_environment,
+                             config=defaults.config_filename)
+
+    # The list_installables command
+    parser_list_installables = subparsers.add_parser('list-installables', help=list_installables.__doc__)
+    parser_list_installables.add_argument('--environment', '-e', metavar='environment', type=str, nargs='?',
+                             help='Python environment name.')
+    parser_list_installables.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
+                             help='Environment configuration file.')
+    parser_list_installables.set_defaults(func=list_installables,
+                             environment=defaults.python_environment,
+                             config=defaults.config_filename)
+
+    # The list_addons command
+    parser_list_addons = subparsers.add_parser('list-addons', help=list_addons.__doc__)
+    parser_list_addons.add_argument('filter_string', metavar='filter_string', type=str, nargs='?',
+                             help='String filter.')
+    parser_list_addons.add_argument('--environment', '-e', metavar='environment', type=str, nargs='?',
+                             help='Python environment name.')
+    parser_list_addons.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
+                             help='Environment configuration file.')
+    parser_list_addons.set_defaults(func=list_addons,
+                             filter_string='',
+                             environment=defaults.python_environment,
+                             config=defaults.config_filename)
+
+    # The enable_addon command
+    parser_enable_addon = subparsers.add_parser('enable', help=enable_addon.__doc__)
+    parser_enable_addon.add_argument('addon', metavar='addon', type=str, nargs=1,
+                             help='Addon name.')
+    parser_enable_addon.add_argument('--environment', '-e', metavar='environment', type=str, nargs='?',
+                             help='Python environment name.')
+    parser_enable_addon.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
+                             help='Environment configuration file.')
+    parser_enable_addon.set_defaults(func=enable_addon,
+                             environment=defaults.python_environment,
+                             config=defaults.config_filename)
+
+    # The disable_addon command
+    parser_disable_addon = subparsers.add_parser('disable', help=disable_addon.__doc__)
+    parser_disable_addon.add_argument('addon', metavar='addon', type=str, nargs=1,
+                             help='Addon name.')
+    parser_disable_addon.add_argument('--environment', '-e', metavar='environment', type=str, nargs='?',
+                             help='Python environment name.')
+    parser_disable_addon.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
+                             help='Environment configuration file.')
+    parser_disable_addon.set_defaults(func=disable_addon,
+                             environment=defaults.python_environment,
+                             config=defaults.config_filename)
+
+    # The dummy command
+    parser_create_dummy_addon = subparsers.add_parser('dummy', help=create_dummy_addon.__doc__)
+    parser_create_dummy_addon.add_argument('addon', metavar='addon', type=str, nargs=1,
+                             help='Addon name.')
+    parser_create_dummy_addon.add_argument('--environment', '-e', metavar='environment', type=str, nargs='?',
+                             help='Python environment name.')
+    parser_create_dummy_addon.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
+                             help='Environment configuration file.')
+    parser_create_dummy_addon.set_defaults(func=create_dummy_addon,
+                             environment=defaults.python_environment,
+                             config=defaults.config_filename)
+
+    # The test command
+    parser_test_addon = subparsers.add_parser('test', help=test_addon.__doc__)
+    parser_test_addon.add_argument('addon', metavar='addon', type=str, nargs='+',
+                             help='Addon name.')
+    parser_test_addon.add_argument('--environment', '-e', metavar='environment', type=str, nargs='?',
+                             help='Python environment name.')
+    parser_test_addon.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
+                             help='Environment configuration file.')
+    parser_test_addon.set_defaults(func=test_addon,
+                             environment=defaults.python_environment,
+                             config=defaults.config_filename)
+
+    # The start_client command
+    parser_start_client = subparsers.add_parser('client', help=start_client.__doc__)
+    parser_start_client.add_argument('--environment', '-e', metavar='environment', type=str, nargs='?',
+                             help='Python environment name.')
+    parser_start_client.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
+                             help='Environment configuration file.')
+    parser_start_client.set_defaults(func=start_client,
+                             environment=defaults.python_environment,
+                             config=defaults.config_filename)
+
+    # The search_addon command
+    parser_search_addon = subparsers.add_parser('search', help=search_addon.__doc__)
+    parser_search_addon.add_argument('objects', metavar='objects', type=str, nargs=1,
+                             help='Object name.')
+    parser_search_addon.add_argument('--environment', '-e', metavar='environment', type=str, nargs='?',
+                             help='Python environment name.')
+    parser_search_addon.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
+                             help='Environment configuration file.')
+    parser_search_addon.set_defaults(func=search_addon,
+                             environment=defaults.python_environment,
+                             config=defaults.config_filename)
+
+    # The show_addon command
+    parser_show_addon = subparsers.add_parser('show', help=show_addon.__doc__)
+    parser_show_addon.add_argument('objects', metavar='objects', type=str, nargs=1,
+                             help='Object name.')
+    parser_show_addon.add_argument('--environment', '-e', metavar='environment', type=str, nargs='?',
+                             help='Python environment name.')
+    parser_show_addon.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
+                             help='Environment configuration file.')
+    parser_show_addon.set_defaults(func=show_addon,
+                             environment=defaults.python_environment,
+                             config=defaults.config_filename)
+
+    # Parse and execute
+    args = parser.parse_args()
+
+    args.func(args)
+
+    exit(0)
+
+    parser.add_option("-V", "--source-version", dest="version",
+                  help="Set openerp version")
     parser.set_usage(_help())
 
     (options, args) = parser.parse_args()
@@ -334,7 +507,8 @@ def main():
         return False
 
     if command in commands_dict:
-        sys.exit(commands_dict[command](*args))
+        import pdb; pdb.set_trace()
+        sys.exit(commands_dict[command](*args, **options))
     else:
         print _help()
         return False

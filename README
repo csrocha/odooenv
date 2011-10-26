@@ -18,44 +18,40 @@ Should suffice with doing:
 
 Then the oerpenv command line is available with the following sub-commands:
 
- -- Environment operations
+	usage: oerpenv [-h]
+		       
+		       {init,update,create,add,install,list-installables,list-addons,enable,disable,dummy,test,client,search,show}
+		       ...
 
-    oerpenv init [path]             Init an environment in the work path or in the declared path. 
-    
-    oerpenv create {name}           Create a new python environment.
-    
-    oerpenv install [env]           Install all software in the default environment of in the declared.
-    
- -- Repository operations
+	optional arguments:
+	  -h, --help            show this help message and exit
 
-    oerpenv add {name} {url}        Add a branch with to the sources list.
-    
-    oerpenv update                  Update sources. 
-    
- -- Observations
+	subcommands:
+	  The OpenERP environment administrator help you to administrate OpenERP
+	  environments. You can use the following commands.
 
-    oerpenv list-addons [expresion] List availables addons in sources. Show all addons if not filter expression declared.
-    
-    oerpenv list-installables       List all availables applications in sources.
-    
-    oerpenv search {object}         Search addon with this object.
-    
-    oerpenv show {addon}            Show addon information.
-    
- -- Addons operations
-
-    oerpenv dummy {addon}           Create a dummy addon. Useful to create new addon.
-    
-    oerpenv enable {addon}          Enabel addons on the environment. Create a symbolic link.
-    
-    oerpenv disable {addon}         Disable addons on the environment. Remove a symbolic link.
-    
- -- Testing operations
-
-    oerpenv test {addon}            Execute the server in test mode for this addon.
-    
-    oerpenv client                  Execute the server in test mode for this addon.
-    
+	  {init,update,create,add,install,list-installables,list-addons,enable,disable,dummy,test,client,search,show}
+				commands
+	    init                Init an environment in the work path or in the
+				declared path.
+	    update              Update sources.
+	    create              Create a new python environment.
+	    add                 Add a branch with to the sources list.
+	    install             Install all software in the default environment of in
+				the declared.
+	    list-installables   List all availables applications in sources.
+	    list-addons         List availables addons in sources. Show all addons if
+				not filter expression declared.
+	    enable              Enabel addons on the environment. Create a symbolic
+				link.
+	    disable             Disable addons on the environment. Remove a symbolic
+				link.
+	    dummy               Create a dummy addon. Useful to create new addon.
+	    test                Execute the server in test mode for this addon.
+	    client              Execute the server in test mode for this addon.
+	    search              Search addon with this object.
+	    show                Show addon information.
+   
 
 All configurations are stored in the environment.conf file. You can setup it by hand or using the available commands.
 
