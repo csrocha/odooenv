@@ -7,675 +7,345 @@ import sys, os, ConfigParser
 import virtualenv
 from virtualenv import subprocess
 from optparse import OptionParser
-from os.path import abspath, exists, join, basename
+from os.path import abspath, exists, join, basename, dirname
+from os import remove
+import signal
 
-default_baseurl = 'lp:'
-default_version = '6.0'
-default_config_filename = 'environment.conf'
-default_client_config_filename='openerp-client.conf'
-default_desc_filename='__openerp__.py'
-default_openerp_header = """# -*- coding: utf-8 -*-
-##############################################################################
-#
-#    OpenERP, Open Source Management Solution
-#    Copyright (C) 2004-2010 Tiny SPRL (<http://tiny.be>).
-#
-#    This program is free software: you can redistribute it and/or modify
-#    it under the terms of the GNU Affero General Public License as
-#    published by the Free Software Foundation, either version 3 of the
-#    License, or (at your option) any later version.
-#
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU Affero General Public License for more details.
-#
-#    You should have received a copy of the GNU Affero General Public License
-#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-##############################################################################
-"""
-default_openerp_footer = "# vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:"
+from oerpenv import defaults, tools
+from oerpenv import OpenERPEnvironment, Addon
 
+def init(path=None, sources=None, config_filename=defaults.config_filename, version=defaults.version):
+    """
+    oerpenv init [path]             Init an environment in the work path or in the declared path. 
+    """
+    print "Init environment."
+    if path is not None:
+        config_filename = join(abspath(path), config_filename)
 
-class Addon:
-        def __init__(self, addon_name, addon_path, addon_config_path):
-                self.token = addon_name
-                self.path = addon_path
-                self.config_path = addon_config_path
-                self._description = None
+    sources = abspath(sources) if sources is not None else None
 
-        def read_description(self):
-                if self._description is None:
-                        self._description = eval(open(self.config_path).read())
+    oerpenv = OpenERPEnvironment(config_filename=config_filename, sources=sources, init=True)
 
-        @property
-        def name(self):
-                self.read_description()
-                return self._description['name']
+    for operation, local_branch_url, remote_branch_url in oerpenv.update(iterate=True):
+        if operation == 'update':
+            print "Updating %s from %s" % (local_branch_url, remote_branch_url)
+        if operation == 'create':
+            print "Creating %s from %s" % (local_branch_url, remote_branch_url)
 
-        @property
-        def description(self):
-                self.read_description()
-                return self._description['description']
+def update(config_filename=defaults.config_filename, version=defaults.version,oerpenv=None):
+    """
+    oerpenv update                  Update sources. 
+    """
+    oerpenv = OpenERPEnvironment(config_filename=config_filename)
 
-        @property
-        def depends(self):
-                self.read_description()
-                return self._description['depends']
+    for operation, local_branch_url, remote_branch_url in oerpenv.update(iterate=True):
+        if operation == 'update':
+            print "Updating %s from %s" % (local_branch_url, remote_branch_url)
+        if operation == 'create':
+            print "Creating %s from %s" % (local_branch_url, remote_branch_url)
 
-        @property
-        def website(self):
-                self.read_description()
-                return self._description['website']
+def create(name=defaults.python_environment, config_filename=defaults.config_filename):
+    """
+    oerpenv create {name}           Create a new python environment.
+    """
+    oerpenv = OpenERPEnvironment(config_filename=config_filename)
 
-        @property
-        def author(self):
-                self.read_description()
-                return self._description['author']
+    print "Creating environment %s" % name
 
-        @property
-        def version(self):
-                self.read_description()
-                return self._description['version']
+    oerpenv.create_python_environment(name)
 
-        @property
-        def objects(self):
-                import re
-                namesearch = re.compile(r'^\s*_name\s*=\s*["\']([a-z][\w\.]*)["\']')
-                inheritsearch = re.compile(r'^\s*_inherit\s*=\s*["\']([a-z][\w\.]*)["\']')
-                search_files = set([])
+def add(branch_name, branch_path, config_filename=defaults.config_filename):
+    """
+    oerpenv add {name} {url}        Add a branch with to the sources list.
+    """
+    oerpenv = OpenERPEnvironment(config_filename=config_filename)
+    oerpenv.load()
 
-                for p, ds, fs in os.walk(self.path):
-                        search_files.update(set([ join(p,f) for f in fs if f[-3:]=='.py']))
+    oerpenv.add_repository(branch_name, branch_path)
 
-                objects = set()
-                inherited = set()
-                for filename in search_files:
-                        with open(filename) as file:
-                                lines = file.readlines()
-                                namematchs = [ namesearch.search(line) for line in lines ]
-                                inheritmatchs = [ inheritsearch.search(line) for line in lines ]
-                                objects.update([ match.group(1) for match in namematchs if match != None ])
-                                inherited.update([ match.group(1) for match in inheritmatchs if match != None ])
-                return objects - inherited, inherited
+    oerpenv.save()
 
-class OpenERPEnvironment:
-        def __init__(self, root_path, config_filename):
-                if root_path is None: root_path = os.getcwd()
-                self.config_filename = config_filename
-                self.root_path = abspath(root_path)
-                self.sources_path = None
-                self.reports_path = None
-                self.addons_dirs = None
-                self.sources = {}
-                self.installables = []
-                self.addons = []
-                self.defaults = {}
+def install(envname=defaults.python_environment,config_filename=defaults.config_filename):
+    """
+    oerpenv install [env]           Install all software in the default environment of in the declared.
+    """
+    oerpenv = OpenERPEnvironment(config_filename=config_filename)
+    oerpenv.set_python_environment(envname)
 
-                self.set_python_environment('default')
+    for item in oerpenv.install():
+        print "Installing %s" % item
+        oerpenv.install()
 
-        def state(self):
-                if not exists(self.root_path):
-                        return 'NOT_EXISTS'
-                if self.sources_path is None:
-                        return 'UNCONFIGURED'
-                if not exists(self.sources_path) or not exists(self.reports_path) or not exists(self.env_path):
-                        return 'INCOMPLETE'
-                if not exists(join(self.env_path, 'bin', 'python')):
-                        return 'NO_PYTHON_ENVIRONMENT'
-                return 'OK'
+def list_installables(envname=defaults.python_environment, config_filename=defaults.config_filename):
+    """
+    oerpenv list-installables       List all availables applications in sources.
+    """
+    oerpenv = OpenERPEnvironment(config_filename=config_filename)
+    oerpenv.set_python_environment(envname)
 
-        def create(self, sources='sources', reports='reports'):
-                r = 0
-                if self.state() == 'NOT_EXISTS':
-                        os.mkdir(self.root_path)
-                        r = -1
-                if self.state() == 'UNCONFIGURED' and exists(join(self.root_path, self.config_filename)):
-                        self.load()
-                        r = -1
-                if self.state() == 'UNCONFIGURED' and not exists(join(self.root_path, self.config_filename)):
-                        self.sources_path = join(self.root_path, sources)
-                        self.reports_path = join(self.root_path, reports)
-                        self.save()
-                if self.state() == 'INCOMPLETE':
-                        if not exists(self.sources_path): os.mkdir(self.sources_path)
-                        if not exists(self.reports_path): os.mkdir(self.reports_path)
-                        if not exists(self.env_path): virtualenv.create_environment(self.env_path)
-                        r = -1
-                return r
+    for application in oerpenv.installables:
+        print "Application:", application.name
+        print "Version:", application.fullname
+        print "Description:", application.description
 
-        def load(self):
-                config = ConfigParser.ConfigParser()
-                config.read(join(self.root_path, self.config_filename))
+def list_addons(filter_string = None, envname=defaults.python_environment, config_filename=defaults.config_filename):
+    """
+    oerpenv list-addons [expresion] List availables addons in sources. Show all addons if not filter expression declared.
+    """
+    oerpenv = OpenERPEnvironment(config_filename=config_filename)
+    oerpenv.set_python_environment(envname)
 
-                self.root_path    = config.get('Environment', 'root')
-                self.sources_path = config.get('Environment', 'sources')
-                self.reports_path = config.get('Environment', 'reports')
-                self.addons_dirs  = config.get('Environment', 'addons').split(' ')
-
-                self.sources =  dict([ (source, config.get('Sources', source))
-                                      for source in config.options('Sources')
-                                      if not source in config.defaults() ])
-                self.installables = [ source
-                                     for source in self.sources.keys()
-                                     if not source in self.addons_dirs ] 
-
-                self.defaults = dict([ (name, config.get('Sources', name))
-                                      for name in config.defaults()])
-
-                self.set_python_environment('default')
-
-        def save(self):
-                config = ConfigParser.RawConfigParser()
-                config.add_section('Environment')
-                config.add_section('Sources')
-
-                for (name, value) in self.defaults.items():
-                        config.set('DEFAULT', name, value)
-
-                for (name, value) in self.sources.items():
-                        config.set('Sources', name, value)
-
-                config.set('Environment', 'root', self.root_path)
-                config.set('Environment', 'sources', self.sources_path)
-                config.set('Environment', 'reports', self.reports_path)
-                config.set('Environment', 'addons', ' '.join(self.addons_dirs))
-
-                with open(join(self.root_path, self.config_filename), 'wb') as configfile:
-                        config.write(configfile)
-
-        def set_python_environment(self, name):
-                self.py_environment_name = name
-                self.env_path = join(self.root_path, self.py_environment_name)
-
-        def execute(self, command, args):
-                subprocess.call([join(self.env_path,'bin',command)] + args)
-
-        def get_addonsourcepath(self):
-                python_exe = join(self.env_path, 'bin', 'python')
-                p = subprocess.Popen([ python_exe, '-c',
-                                     'import platform; print platform.python_version()[:3],'],
-                                    stdout=subprocess.PIPE, stdin=subprocess.PIPE)
-                python_ver = ''.join(p.stdout.readlines())[:-1]
-                addons_path = join(self.env_path, 'lib', 'python%s' % python_ver, 'site-packages', 'openerp-server', 'addons')
-                return addons_path
-
-        def find_addons(self, desc_filename=default_desc_filename):
-                addons = []
-                for addonsdir in self.addons_dirs:
-                        apath = join(self.sources_path, addonsdir)
-                        for addon in [ Addon(basename(r), r, join(r, desc_filename)) for r,dns,fns in os.walk(apath) if desc_filename in fns ]:
-                                yield addon
-
-_branch = {
-        '6.0': '6.0',
-}
-_extrabranch = {
-        '4.2': '4.2-extra-addons',
-        '5.0': 'stable_5.0-extra-addons',
-        '6.0': 'extra-6.0',
-        'last': 'trunk-extra-addons',
-}
-_communitybranch = {
-        '6.0': 'trunk-addons-community',
-}
-_webbranch = {
-        '6.0': '6.0',
-}
-
-
-def message(s):
-        print """
-  * OpenERP environment administrator.
-
-  %s
-  """ % s
-
-def create_database(dbname):
-        import psycopg2
-
-        conn = psycopg2.connect("")
-        conn.set_isolation_level(0)
-        cur = conn.cursor()
-        try:
-                cur.execute("CREATE DATABASE %s;" % dbname)
-        except psycopg2.ProgrammingError:
-                cur.execute("DROP DATABASE %s;" % dbname)
-                cur.execute("CREATE DATABASE %s;" % dbname)
-        conn.set_isolation_level(3)
-
-def drop_database(dbname):
-        import psycopg2
-
-        conn = psycopg2.connect("")
-        conn.set_isolation_level(0)
-        cur = conn.cursor()
-        cur.execute("DROP DATABASE %s;" % dbname)
-        conn.set_isolation_level(3)
-
-def init(rootpath, baseurl=default_baseurl, version=default_version, config_filename=default_config_filename):
-        """
-        oerpenv init [path]             Init an environment to the path. 
-        """
-        oerpenv = OpenERPEnvironment(rootpath, config_filename=config_filename)
-
-        print "Init environment."
-        if oerpenv.create(sources='sources', reports='reports'):
-                print "Done."
+    for addon in oerpenv.addons(filter_string):
+        state = ''
+        if exists(join(oerpenv.get_addonsourcepath(), addon.token)):
+                state = 'e'
         else:
-                print "Nothing done."
+                state = 'd'
+                
+        print "%35ls :%s: %s" % (addon.token, state, addon.name)
 
-        resetconf(rootpath, baseurl=baseurl, version=version)
-        update(rootpath)
+def enable_addon(addon_token, envname=defaults.python_environment, config_filename=defaults.config_filename):
+    """
+    oerpenv enable {addon}          Enabel addons on the environment. Create a symbolic link.
+    """
+    oerpenv = OpenERPEnvironment(config_filename=config_filename)
+    oerpenv.load()
+    oerpenv.set_python_environment(envname)
 
-def resetconf(rootpath=None, baseurl=default_baseurl, version=default_version, config_filename=default_config_filename):
-        """
-        oerpenv resetconf               Reset configuration values. 
-        """
-        oerpenv = OpenERPEnvironment(rootpath, config_filename=config_filename)
+    addons_path = oerpenv.get_addonsourcepath()
 
-        if rootpath is None:
-                rootpath = abspath(os.getcwd())
+    addons = dict([ (addon.token, addon) for addon in oerpenv.addons() ])
+    addons_set = set(addons.keys())
 
-	oerpenv.root_path = abspath(rootpath)
-        oerpenv.sources_path = join(rootpath, 'sources')
-        oerpenv.reports_path = join(rootpath, 'reports')
-        oerpenv.addons_dirs = 'addons addons-extra addons-community'
-        oerpenv.defaults = {
-                'baseurl': baseurl,
-                'branch': _branch[version],
-                'extrabranch': _extrabranch[version],
-                'communitybranch': _communitybranch[version],
-                'webbranch': _webbranch[version],
-        }
-        oerpenv.sources = {
-                'server': '%(baseurl)s~openerp/openobject-server/%(branch)s',
-                'client': '%(baseurl)s~openerp/openobject-client/%(branch)s',
-                'addons': '%(baseurl)s~openerp/openobject-addons/%(branch)s',
-                'addons-extra': '%(baseurl)s~openerp-commiter/openobject-addons/%(extrabranch)s',
-                'addons-community': '%(baseurl)s~openerp-community/openobject-addons/%(communitybranch)s',
-                'web': '%(baseurl)s~openerp/openobject-client-web/%(webbranch)s',
-        }
+    to_install = set([ addon_token ])
 
-        oerpenv.save()
+    if not exists(addons_path):
+        print "Execute 'oerpenv install' before 'oerpenv enable'"
+        return False
 
-def save_configuration(options, filename):
-        try:
-            p = ConfigParser.ConfigParser()
-            sections = {}
-            for o in options.keys():
-                if not len(o.split('.'))==2:
-                    continue
-                osection,oname = o.split('.')
-                if not p.has_section(osection):
-                    p.add_section(osection)
-                p.set(osection,oname,options[o])
-            p.write(file(filename,'wb'))
-        except:
-            print 'Unable to write config file %s !'% (filename,)
-        return True
+    if not to_install <= addons_set:
+        print "No available addon %s." % addon_name
+        return False
 
+    while to_install and to_install <= addons_set:
+        addon_token = to_install.pop()
 
-def create_configuration(envname='default', client_config_filename=default_client_config_filename, rootpath=None, config_filename=default_config_filename):
-        """
-        oerpenv config                  Create client and server configuration files. 
-        """
-        oerpenv = OpenERPEnvironment(rootpath, config_filename=config_filename)
-        oerpenv.load()
-        oerpenv.set_python_environment(envname)
+        addon = addons[addon_token]
 
-        config_path = join(oerpenv.env_path, 'etc')
+        to_install.update(addon.depends)
 
-        if not exists(config_path):
-                os.mkdir(config_path)
+        where_install = join(addons_path, addon_token) 
 
-        client_config_filename = join(oerpenv.env_path, 'etc', client_config_filename)
-        if not exists(client_config_filename):
-                options_client_configuration = {
-                    'login.login': 'demo',
-                    'login.server': 'localhost',
-                    'login.port': '8070',
-                    'login.protocol': 'socket://',
-                    'login.db': 'terp',
-                    'client.toolbar': 'both',
-                    'client.theme': 'none',
-                    'path.share': join(oerpenv.env_path, 'share', 'openerp-client'),
-                    'path.pixmaps': join(oerpenv.env_path, 'share', 'pixmaps', 'openerp-client'),
-                    'tip.autostart': False,
-                    'tip.position': 0,
-                    'form.autosave': False,
-                    'printer.preview': True,
-                    'printer.softpath': 'none',
-                    'printer.softpath_html': 'none',
-                    'printer.path': 'none',
-                    'logging.level': 'INFO',
-                    'logging.output': 'stdout',
-                    'debug_mode_tooltips':False,
-                    'client.default_path': os.path.expanduser('~'),
-                    'support.recipient': 'support@openerp.com',
-                    'support.support_id' : '',
-                    'form.toolbar': True,
-                    'form.submenu': True,
-                    'client.form_tab': 'top',
-                    'client.form_tab_orientation': 0,
-                    'client.lang': False,
-                    'client.filetype': {},
-                    'help.index': 'http://doc.openerp.com/',
-                    'help.context': 'http://doc.openerp.com/v6.0/index.php?model=%(model)s&lang=%(lang)s',
-                    'client.timeout': 3600,
-                    'client.form_text_spellcheck': True,
-                }
-                print "Creating client configuration in %s" % client_config_filename
-                save_configuration(options_client_configuration, client_config_filename)
+        if exists(where_install):
+            print "Updating %s" % addon_token
+            os.remove(where_install)
         else:
-                print "Yet exists client configuration in %s. Remove it if you want reset it." % client_config_filename
+            print "Installing %s" % addon_token
 
-def update(rootpath=None, config_filename=default_config_filename):
-        """
-        oerpenv update                  Update sources. 
-        """
-        oerpenv = OpenERPEnvironment(rootpath, config_filename=config_filename)
-        oerpenv.load()
+        os.symlink(addon.path, where_install)
 
-        from bzrlib.plugin import load_plugins
-        from bzrlib.branch import Branch
+        if 'base' in to_install: to_install.remove('base')
 
-        load_plugins()
+    return True
 
-        for branch, remote_branch_url in oerpenv.sources.items():
-                local_branch_url = join(oerpenv.root_path, 'sources', branch)
+def disable_addon(addon_token, envname=defaults.python_environment, config_filename=defaults.config_filename):
+    """
+    oerpenv disable {addon}         Disable addons on the environment. Remove a symbolic link.
+    """
+    oerpenv = OpenERPEnvironment(config_filename=config_filename)
+    oerpenv.load()
+    oerpenv.set_python_environment(envname)
 
-                if exists(local_branch_url):
-                        print "Updating %s from %s" % (local_branch_url, remote_branch_url)
+    addons_path = oerpenv.get_addonsourcepath()
 
-                        remote_branch = Branch.open(remote_branch_url)
-                        local_branch = Branch.open(local_branch_url)
+    addon_path = join(addons_path, addon_token)
 
-                        local_branch.pull(remote_branch)
-                else:
-                        print "Creating %s from %s" % (local_branch_url, remote_branch_url)
+    if exists(addon_path):
+        print "Removing %s." % addon_token
+        remove(addon_path)
+    else:
+        print "Addon %s not enabled." % addon_token
 
-                        remote_branch = Branch.open(remote_branch_url)
-                        local_branch = remote_branch.bzrdir.sprout(
-                                local_branch_url).open_branch()
+    return True
 
-def newenv(envname='default', rootpath=None):
-        """
-        oerpenv newenv [name]           Create a new python environment
-        """
-        oerpenv = OpenERPEnvironment(rootpath, config_filename=config_filename)
-        oerpenv.load()
+def create_dummy_addon(addon_token, envname=defaults.python_environment, config_filename=defaults.config_filename):
+    """
+    oerpenv dummy {addon}           Create a dummy addon. Useful to create new addon.
+    """
+    oerpenv = OpenERPEnvironment(config_filename=config_filename)
+    oerpenv.load()
+    oerpenv.set_python_environment(envname)
 
-        print "Creating environment %s" % envname
+    source_path = join(oerpenv.sources_path, addon_token)
+    if exists(source_path):
+        print "Exists directory %s. Please remove it if you want a new dummy addon" % source_path
+        return
+    print "Creating dummy addon on %s" % source_path
 
-        virtualenv.create_environment(join(oerpenv.rootpath, oerpenv.env_name))
+    # Create addon path structure
+    os.mkdir(source_path)
+    for subdir in ['i18n', 'process', 'report', 'security', 'test', 'wizard']:
+        os.mkdir(join(source_path, subdir))
 
+    # Create __init__.py files
+    for subdir in ['.', 'report', 'wizard']:
+        with open(join(source_path, subdir, '__init__.py'), 'w') as file:
+            file.write(defaults.openerp_header)
+            file.write(defaults.init_body)
+            file.write(defaults.openerp_footer)
 
-def add(braname, remote_branch, rootpath=None, config_filename=default_config_filename):
-        """
-        oerpenv add [name] [repository] Add a branch to the sources list
-        """
-        oerpenv = OpenERPEnvironment(rootpath, config_filename=config_filename)
-        oerpenv.load()
+    import pprint
+    with open(join(source_path, oerpenv.desc_filename), 'w') as file:
+        pp = pprint.PrettyPrinter(indent=4, stream=file)
+        file.write(defaults.openerp_header)
+        pp.pprint(defaults.addon_description(addon_token))
+        file.write(defaults.openerp_footer)
 
-        oerpenv.addons_dirs.append(braname)
-        oerpenv.sources[braname] = remote_branch
+    oerpenv.save()
 
-        oerpenv.save()
+def test_addon(addon_token, envname=defaults.python_environment, config_filename=defaults.config_filename):
+    """
+    oerpenv test {addon}            Execute the server in test mode for this addon.
+    """
+    oerpenv = OpenERPEnvironment(config_filename=config_filename)
+    oerpenv.load()
+    oerpenv.set_python_environment(envname)
+    addons_path = oerpenv.get_addonsourcepath()
 
-def install(envname='default', rootpath=None, config_filename=default_config_filename):
-        """
-        oerpenv install [env]           Install all software in the environment
-        """
-        oerpenv = OpenERPEnvironment(rootpath, config_filename=config_filename)
-        oerpenv.load()
-        oerpenv.set_python_environment(envname)
+    dbname = "test_db_%s" % ''.join(addon_token)
 
-        for branch, remote_branch_url in oerpenv.sources.items():
-                if branch in oerpenv.addons_dirs: continue
-                print "\nInstalling %s" % branch
-                local_branch_url = join(oerpenv.root_path, 'sources', branch)
+    print "Create db %s" % dbname
+    tools.create_database(dbname);
 
-                oerpenv.execute('pip', ['install', local_branch_url])
+    print "Running test %s" % addon_token
+    try:
+        oerpenv.execute('openerp-server', ['--init', addon_token, '-d', dbname, '--test-report-directory', oerpenv.reports_path ])
+    except KeyboardInterrupt:
+        print "KeyboardInterrupt event."
 
-def list_addons(envname='default', rootpath=None, config_filename=default_config_filename):
-        """
-        oerpenv list-addons             List all availables addons in sources.
-        """
-        oerpenv = OpenERPEnvironment(rootpath, config_filename=config_filename)
-        oerpenv.load()
-        oerpenv.set_python_environment(envname)
+    print "Drop db %s" % dbname
+    tools.drop_database(dbname);
 
-        for addon in oerpenv.find_addons():
-                state = ''
-                if exists(join(oerpenv.get_addonsourcepath(), addon.token)):
-                        state = 'e'
-                else:
-                        state = 'd'
-                        
-                print "%35ls :%s: %s" % (addon.token, state, addon.name)
+def start_client(envname=defaults.python_environment, config_filename=defaults.config_filename):
+    """
+    oerpenv client                  Execute the server in test mode for this addon.
+    """
+    oerpenv = OpenERPEnvironment(config_filename=config_filename)
+    oerpenv.load()
+    oerpenv.set_python_environment(envname)
 
-def enable_addon(addon_name, envname='default', rootpath=None, config_filename=default_config_filename):
-        """
-        oerpenv enable [addons]         Enabel addons on the environment. Create a symbolic link.
-        """
-        oerpenv = OpenERPEnvironment(rootpath, config_filename=config_filename)
-        oerpenv.load()
-        oerpenv.set_python_environment(envname)
-        addons_path = oerpenv.get_addonsourcepath()
+    client_config_filename = join(oerpenv.env_path, 'etc', oerpenv.client_config_filename)
 
-        addons = dict([ (addon.token, addon) for addon in oerpenv.find_addons() ])
-        addons_set = set(addons.keys())
+    print "Running client in environment %s" % envname
+    try:
+        oerpenv.execute('openerp-client', ['-c', client_config_filename])
+    except KeyboardInterrupt:
+        print "KeyboardInterrupt event."
 
-        to_install = set([ addon_name ])
+def search_addon(objectname, envname=defaults.python_environment, config_filename=defaults.config_filename):
+    """
+    oerpenv search {object}         Search addon with this object.
+    """
+    oerpenv = OpenERPEnvironment(config_filename=config_filename)
+    oerpenv.load()
+    oerpenv.set_python_environment(envname)
 
-        if not to_install <= addons_set:
-                print "No available addon %s." % addon_name
+    print "Definition:"
+    for addon in oerpenv.addons(object_filter=objectname):
+        print "%35s:%s" % (addon.token, addon.name)
 
-        while to_install and to_install <= addons_set:
-                addon_name = to_install.pop()
-
-                addon = addons[addon_name]
-
-                to_install.update(addon.depends)
-
-                where_install = join(addons_path, addon_name) 
-
-                if exists(where_install):
-                        print "Updating %s" % addon_name
-                        os.remove(where_install)
-                else:
-                        print "Installing %s" % addon_name
-                os.symlink(addon.path, where_install)
-
-                if 'base' in to_install: to_install.remove('base')
-
-def create_dummy_addon(addon_token, envname='default', rootpath=None, config_filename=default_config_filename):
-        """
-        oerpenv dummy [addon]           Create a dummy addon. Useful to create new addon.
-        """
-        oerpenv = OpenERPEnvironment(rootpath, config_filename=config_filename)
-        oerpenv.load()
-        oerpenv.set_python_environment(envname)
-
-        source_path = join(oerpenv.sources_path, addon_token)
-        if exists(source_path):
-                print "Exists directory %s. Please remove it if you want a new dummy addon" % source_path
-                return
-        print "Creating dummy addon on %s" % source_path
-
-        # Create addon path structure
-        os.mkdir(source_path)
-        for subdir in ['i18n', 'process', 'report', 'security', 'test', 'wizard']:
-                os.mkdir(join(source_path, subdir))
-
-        # Create __init__.py files
-        for subdir in ['.', 'report', 'wizard']:
-                with open(join(source_path, subdir, '__init__.py'), 'w') as file:
-                        file.write(default_openerp_header)
-                        file.write(
-"""
-#
-# Insert all includes necesary for this module
-#
-
-"""
-                                  )
-                        file.write(default_openerp_footer)
-
-        import getpass
-        import pprint
-        addon_description = {
-                'name': 'Dummy addon %s' % addon_token,
-                'version': '0.0',
-                'category': 'None',
-                'description': 'Dummy addon.',
-                'author': getpass.getuser(),
-                'website': 'http://www.openerp.com/',
-                'depends': [],
-                'init_xml': [],
-                'update_xml': [],
-                'demo_xml': [],
-                'test': [],
-                'installable': True,
-                'active': False,
-        }
-
-        with open(join(source_path, default_desc_filename), 'w') as file:
-                pp = pprint.PrettyPrinter(indent=4, stream=file)
-                file.write(default_openerp_header)
-                pp.pprint(addon_description)
-                file.write(default_openerp_footer)
-
-        oerpenv.addons_dirs.append(addon_token)
-        oerpenv.save()
-
-def test_addon(addon_token, envname='default', rootpath=None, config_filename=default_config_filename):
-        """
-        oerpenv test [addon]            Execute the server in test mode for this addon.
-        """
-        oerpenv = OpenERPEnvironment(rootpath, config_filename=config_filename)
-        oerpenv.load()
-        oerpenv.set_python_environment(envname)
-        addons_path = oerpenv.get_addonsourcepath()
-
-        dbname = "test_db_%s" % ''.join(addon_token)
-
-        print "Create db %s" % dbname
-        create_database(dbname);
-
-        print "Running test %s" % addon_token
-        try:
-                oerpenv.execute('openerp-server', ['--init', addon_token, '-d', dbname, '--test-report-directory', oerpenv.reports_path ])
-        except KeyboardInterrupt:
-                print "KeyboardInterrupt event."
-
-        print "Drop db %s" % dbname
-        drop_database(dbname);
-
-def start_client(envname='default', rootpath=None, config_filename=default_config_filename, client_config_filename=default_client_config_filename):
-        """
-        oerpenv client                  Execute the server in test mode for this addon.
-        """
-        create_configuration(envname=envname,rootpath=rootpath,config_filename=default_config_filename) 
-        
-        oerpenv = OpenERPEnvironment(rootpath, config_filename=config_filename)
-        oerpenv.load()
-        oerpenv.set_python_environment(envname)
-
-        client_config_filename = join(oerpenv.env_path, 'etc', client_config_filename)
-
-        print "Running client in environment %s" % envname
-        try:
-                oerpenv.execute('openerp-client', ['-c', client_config_filename])
-        except KeyboardInterrupt:
-                print "KeyboardInterrupt event."
-
-def search_addon(objectname, envname='default', rootpath=None, config_filename=default_config_filename):
-        """
-        oerpenv search [object]         Search addon with this object.
-        """
-        oerpenv = OpenERPEnvironment(rootpath, config_filename=config_filename)
-        oerpenv.load()
-        oerpenv.set_python_environment(envname)
-
-        import re
-        objsearch = re.compile(r'^\s*_name\s*=\s*["\']%s["\']\s*' % objectname)
-
-        for addon in oerpenv.find_addons():
-                objects, inherited = addon.objects
-                search_files = set([])
-
-                for p, ds, fs in os.walk(addon.path):
-                        search_files.update(set([ join(p,f) for f in fs if f[-3:]=='.py']))
-
-                for filename in search_files:
-                        with open(filename) as file:
-                                if True in [ objsearch.search(line) != None for line in file.readlines() ]:
-                                        print "%35s:%s" % (addon.token, addon.name)
+    print "Inherited:"
+    for addon in oerpenv.addons(inherited_filter=objectname):
+        print "%35s:%s" % (addon.token, addon.name)
  
-def show_addon(addonname, envname='default', rootpath=None, config_filename=default_config_filename):
-        """
-        oerpenv show [object]           Show addon information.
-        """
-        oerpenv = OpenERPEnvironment(rootpath, config_filename=config_filename)
-        oerpenv.load()
-        oerpenv.set_python_environment(envname)
+def show_addon(addonname, envname=defaults.python_environment, config_filename=defaults.config_filename):
+    """
+    oerpenv show {addon}            Show addon information.
+    """
+    oerpenv = OpenERPEnvironment(config_filename=config_filename)
+    oerpenv.load()
+    oerpenv.set_python_environment(envname)
 
-        addons = dict([ (addon.token, addon) for addon in oerpenv.find_addons() ])
-        if addonname in addons:
-                addon = addons[addonname]
-                print "Token:", addon.token
-                print "Name:", addon.name
-                print "Version:", addon.version
-                print "Author:", addon.author
-                print "Description:", addon.description
-                print "Web:", addon.website
-                print "Depends:", ','.join(addon.depends)
-                print "Objects:", ','.join((lambda a,b: a.union(b))(*addon.objects))
-                print "Source:", addon.path 
+    addons = dict([ (addon.token, addon) for addon in oerpenv.addons(token_filter=addonname) ])
+    if addonname in addons:
+        addon = addons[addonname]
+        print "Token:", addon.token
+        print "Name:", addon.name
+        print "Version:", addon.version
+        print "Author:", addon.author
+        print "Description:", addon.description
+        print "Web:", addon.website
+        print "Depends:", ','.join(addon.depends)
+        objects = addon.objects
+        print "Defined Objects:", ','.join(objects[0]) 
+        print "Inhereted Objects:", ','.join(objects[1])
+        print "Source:", addon.path 
 
-commands = {
-        'init': init,
-        'update': update,
-        'resetconf': resetconf,
-        'add': add,
-        'newenv': newenv,
-        'install': install,
-        'list-addons': list_addons,
-        'enable': enable_addon,
-        'dummy': create_dummy_addon,
-        'test': test_addon,
-        'search': search_addon,
-        'show': show_addon,
-        'client': start_client,
-        'config': create_configuration,
-}
+commands = [
+    ('Environment operations', [
+        ('init', init),
+        ('create', create),
+        ('install', install),
+    ]),
+    ('Repository operations', [
+        ('add', add),
+        ('update', update),
+    ]),
+    ('Observations', [
+        ('list-addons', list_addons),
+        ('list-installables', list_installables),
+        ('search', search_addon),
+        ('show', show_addon),
+    ]),
+    ('Addons operations', [
+        ('dummy', create_dummy_addon),
+        ('enable', enable_addon),
+        ('disable', disable_addon),
+    ]),
+    ('Testing operations', [
+        ('test', test_addon),
+        ('client', start_client),
+    ]),
+]
+
+commands_dict = dict(sum([ command_pairs for section, command_pairs in commands ], []))
 
 def _help():
-        s = "oerpenv [command] [options]\n"
-        s += "The OpenERP environment administrator help you to administrate OpenERP environments. You can use the following commands.\n"
-        for command in commands:
-                s += str(commands[command].__doc__)
-        s += "\nAll configurations are stored in the environment.conf file. You can setup it by hand or using the available commands."
-        return s
+    s = "oerpenv [command] [options]\n"
+    s += "The OpenERP environment administrator help you to administrate OpenERP environments. You can use the following commands.\n\n"
+    for section, command_pairs in commands:
+        s += " -- %s\n" % section
+        for command, function in command_pairs:
+            s += str(commands_dict[command].__doc__)
+        s += "\n"
+    s += "\nAll configurations are stored in the environment.conf file. You can setup it by hand or using the available commands."
+    return s
 
+def main():
+    parser = OptionParser()
+    parser.set_usage(_help())
 
-parser = OptionParser()
-parser.set_usage(_help())
+    (options, args) = parser.parse_args()
 
-(options, args) = parser.parse_args()
-
-try:
+    try:
         command = args.pop(0)
-except:
+    except:
         print _help()
-        sys.exit(-1)
+        return False
 
-if command in commands:
+    if command in commands:
         sys.exit(commands[command](*args))
-else:
+    else:
         print _help()
-        sys.exit(-1)
-        
+        return False
+
+def signal_handler(signal, frame):
+    sys.exit(-1)
+
+if __name__ == "__main__":
+    signal.signal(signal.SIGINT, signal_handler)
+
+    if not main():
+        exit(-1)
+
+# vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

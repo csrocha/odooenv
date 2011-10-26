@@ -9,6 +9,7 @@ setup(name='oerpenv',
             author_email='cristian.rocha@moldeointeractive.com.ar',
             url='http://www.moldeointeractive.com.ar/',
             scripts=['scripts/oerpenv'],
-#           packages=['oerpenv'],
+            packages=['oerpenv'],
            )
 
+# vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
