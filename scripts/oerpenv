@@ -11,6 +11,7 @@ from os.path import abspath, exists, join, basename, dirname
 from os import remove
 import signal
 
+import bzrlib
 from oerpenv import defaults, tools
 from oerpenv import OpenERPEnvironment, Addon
 
@@ -36,11 +37,16 @@ def init(args):
         print s
         return False
 
-    for operation, local_branch_url, remote_branch_url in oerpenv.update(iterate=True):
-        if operation == 'update':
-            print "Updating %s from %s" % (local_branch_url, remote_branch_url)
-        if operation == 'create':
-            print "Creating %s from %s" % (local_branch_url, remote_branch_url)
+    try:
+        for operation, local_branch_url, remote_branch_url in oerpenv.update(iterate=True):
+            if operation == 'update':
+                print "Updating %s from %s" % (local_branch_url, remote_branch_url)
+            if operation == 'create':
+                print "Creating %s from %s" % (local_branch_url, remote_branch_url)
+    except bzrlib.errors.NotBranchError:
+        print "Trouble creating/updating local repository."
+        print "Please remove %s and execute the command again" % local_branch_url 
+        return False
 
 def update(args):
     """
@@ -48,11 +54,16 @@ def update(args):
     """
     oerpenv = OpenERPEnvironment(config_filename=args.config)
 
-    for operation, local_branch_url, remote_branch_url in oerpenv.update(iterate=True):
-        if operation == 'update':
-            print "Updating %s from %s" % (local_branch_url, remote_branch_url)
-        if operation == 'create':
-            print "Creating %s from %s" % (local_branch_url, remote_branch_url)
+    try:
+        for operation, local_branch_url, remote_branch_url in oerpenv.update(iterate=True):
+            if operation == 'update':
+                print "Updating %s from %s" % (local_branch_url, remote_branch_url)
+            if operation == 'create':
+                print "Creating %s from %s" % (local_branch_url, remote_branch_url)
+    except bzrlib.errors.NotBranchError:
+        print "Trouble creating/updating local repository."
+        print "Please remove %s and execute the command again" % local_branch_url 
+        return False
 
 def create(args):
     """
