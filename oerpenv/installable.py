@@ -20,9 +20,11 @@
 #
 ##############################################################################
 
-from os.path import abspath, basename, dirname
+from os.path import abspath, basename, dirname, join
 import imp
 import os
+import subprocess
+import StringIO
 
 class Installable:
     def __init__(self, installable_setup_path):
@@ -33,26 +35,48 @@ class Installable:
         self._path = dirname(self._installable_setup_path)
         self.read_description()
 
+    def run_setup(self, command, bin_path=''):
+        command = [ join(bin_path, 'python'), join(self._path,'setup.py'), command ]
+        P = subprocess.Popen(command,
+                            cwd = self._path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        out = P.stdout.readlines()
+        err = P.stderr.readlines()
+        r = P.wait()
+        return out, err, r
+
     def read_description(self):
         """
         Read Installable description.
         """
-        old_path = os.getcwd()
-        os.chdir(self._path)
-        sin, sout, serr = os.popen3('python %s --name --fullname --description' % self._installable_setup_path)
-        self._name = sout.readline().replace('\n', '')
-        self._fullname = sout.readline().replace('\n', '')
-        self._description = sout.readlines()
-        if self._name == '':
+        name, err, r = self.run_setup('--name')
+        if not r == 0:
             raise RuntimeError('No description')
-        os.chdir(old_path)
+        fullname, err, r = self.run_setup('--fullname')
+        if not r == 0:
+            raise RuntimeError('No description')
+        description, err, r = self.run_setup('--description')
+        if not r == 0:
+            raise RuntimeError('No description')
+        self._name = ','.join(name)[:-1]
+        self._fullname = ','.join(fullname)[:-1]
+        self._description = ''.join(description)[:-1]
 
-    def install(self, python='python'):
-        old_path = os.getcwd()
-        os.chdir(self._path)
-        sin, sout, serr = os.popen3('%s %s install' % (python, self._installable_setup_path))
-        print sout.readlines()
-        return True
+    def install(self, bin_path='', methods=['pip', 'setup.py']):
+        for method in methods:
+            if method in ['setup.py', 'python']:
+                command = [ join(bin_path, 'python'), join(self._path,'setup.py'), 'install' ]
+            elif method in ['pip', 'easy_install']:
+                command = [ join(bin_path, method), 'install', self._path ]
+            else:
+                return False
+            P = subprocess.Popen(command, cwd=self._path,
+                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            out = P.stdout.readlines()
+            err = P.stderr.readlines()
+            r = P.wait()
+            if "Successfully installed %s\n" % self._name in out:
+                return True
+        return False
 
     @property
     def path(self):

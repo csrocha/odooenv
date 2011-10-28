@@ -31,6 +31,16 @@ from bzrlib.plugin import load_plugins
 from bzrlib.branch import Branch
 import re
 
+class NoEnvironmentConfigFileError(RuntimeError):
+    def __init__(self, filepath):
+        self.filepath = filepath
+        self.message = "No environment config file available (%s)" % filepath
+
+class NoVersionAvailableError(RuntimeError):
+    def __init__(self, version):
+        self.version = version
+        self.message = "No version available (%s)" % version
+
 class OpenERPEnvironment:
     def __init__(self, sources=None, config_filename=defaults.config_filename, init=False, version='6.0'):
         """
@@ -51,7 +61,7 @@ class OpenERPEnvironment:
                 makedirs(self.root_path)
             self._config = defaults.environment_configuration
             if not version in defaults.version_configuration:
-                raise RuntimeError('Version not available')
+                raise NoVersionAvailableError(version)
             self._config.update(defaults.version_configuration[version])
             self._config['Environment.root'] = self.root_path
             if not sources is None:
@@ -62,7 +72,7 @@ class OpenERPEnvironment:
             for d in defaults.directory_structure:
                 if not exists(d): makedirs(join(self.root_path, d))
         else:
-            raise RuntimeError('Can\'t read configuration file %s' % config_filename)
+            raise NoEnvironmentConfigFileError(config_filename)
 
         self.load()
         self.defaults = {}
@@ -130,13 +140,12 @@ class OpenERPEnvironment:
         self.save()
         return True
 
-    def install(self, iterable=False):
-        for application in self.installables:
-            yield application.name
-            self.execute('pip', ['install', application.path])
-
     def add_repository(self, branch_name, branch_url):
         self._config['Repositories.%s' % branch_name] = branch_url
+
+    @property
+    def binary_path(self):
+        return join(self.env_path, 'bin')
 
     @property
     def installables(self):
@@ -216,7 +225,8 @@ class OpenERPEnvironment:
         """
         Execute a command in the python environment defined in set_python_environment()
         """
-        subprocess.call([join(self.env_path,'bin',command)] + args)
+        P = subprocess.Popen([join(self.env_path,'bin',command)] + args)
+        P.wait()
 
     def get_addonsourcepath(self):
         """

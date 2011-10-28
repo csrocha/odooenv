@@ -12,8 +12,7 @@ from os import remove
 import signal
 
 import bzrlib
-from oerpenv import defaults, tools
-from oerpenv import OpenERPEnvironment, Addon
+from oerpenv import *
 
 def init(args):
     """
@@ -93,8 +92,16 @@ def install(args):
     oerpenv = OpenERPEnvironment(config_filename=args.config)
     oerpenv.set_python_environment(args.environment)
 
-    for item in oerpenv.install():
-        print "Installing %s" % item
+    for app in oerpenv.installables:
+        print "Installing %s" % app.name
+        if app.install(oerpenv.binary_path):
+            print "Successfull installed"
+        else:
+            print "ERROR: Can't confirm the application is installed."
+            print "Please, execute 'operenv test base' to check if server is working"
+            print "To check if client is working execute 'openerp client'"
+            print "If not working, recreate the python environment and try again"
+            print
 
 def list_installables(args):
     """
@@ -104,6 +111,7 @@ def list_installables(args):
     oerpenv.set_python_environment(args.environment)
 
     for application in oerpenv.installables:
+        print "--"
         print "Application:", application.name
         print "Version:", application.fullname
         print "Description:", application.description
@@ -231,12 +239,19 @@ def test_addon(args):
     dbname = "test_db_%s" % '_'.join(args.addon)
 
     print "Create db %s" % dbname
-    tools.create_database(dbname);
+    try:
+        tools.create_database(dbname);
+    except RuntimeError, m:
+        print m
+        exit(-1)
 
     print "Running test %s" % ','.join(args.addon)
     try:
         initarg = sum([['--init', v] for v in args.addon ], [])
-        oerpenv.execute('openerp-server', initarg + ['-d', dbname, '--test-report-directory', oerpenv.reports_path ])
+        options = []
+        if oerpenv._config['Environment.version'] in '6.0':
+            options += [ '--test-report-directory', oerpenv.reports_path ]
+        oerpenv.execute('openerp-server', initarg + ['-d', dbname] + options)
     except KeyboardInterrupt:
         print "KeyboardInterrupt event."
 
@@ -501,28 +516,24 @@ def main():
     # Parse and execute
     args = parser.parse_args()
 
-    args.func(args)
+    try:
+        args.func(args)
+    except NoEnvironmentConfigFileError, m:
+        print "ERROR:", m.message
+        print """
+Go to a environment directory where environment.conf exists, or
+create one using 'oerpenv init' command.
+"""
+    except NoVersionAvailableError, m:
+        print "ERROR:", m.message
+        print """
+I can't manage this version. Please advise to developers using
+this link http://launchpad.org/oerpenv/bugs. 
 
+
+"""
     exit(0)
 
-    parser.add_option("-V", "--source-version", dest="version",
-                  help="Set openerp version")
-    parser.set_usage(_help())
-
-    (options, args) = parser.parse_args()
-
-    try:
-        command = args.pop(0)
-    except:
-        print _help()
-        return False
-
-    if command in commands_dict:
-        import pdb; pdb.set_trace()
-        sys.exit(commands_dict[command](*args, **options))
-    else:
-        print _help()
-        return False
 
 def signal_handler(signal, frame):
     sys.exit(-1)

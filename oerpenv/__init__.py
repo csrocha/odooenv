@@ -22,5 +22,6 @@
 
 from addon import Addon
 from environment import OpenERPEnvironment
+from environment import NoEnvironmentConfigFileError, NoVersionAvailableError
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
