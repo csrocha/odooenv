@@ -46,6 +46,10 @@ def init(args):
         print "Trouble creating/updating local repository."
         print "Please remove %s and execute the command again" % local_branch_url 
         return False
+    except bzrlib.errors.InvalidURL:
+        print "Trouble acceding remote repository."
+        print "The url <%s> in the environment.conf is invalid. Modify it and try again." % remote_branch_url 
+        return False
 
 def update(args):
     """
@@ -61,7 +65,11 @@ def update(args):
                 print "Creating %s from %s" % (local_branch_url, remote_branch_url)
     except bzrlib.errors.NotBranchError:
         print "Trouble creating/updating local repository."
-        print "Please remove %s and execute the command again" % local_branch_url 
+        print "Please remove %s and execute the command again." % local_branch_url 
+        return False
+    except bzrlib.errors.InvalidURL:
+        print "Trouble acceding remote repository."
+        print "Please check the url <%s> in the environment.conf and try again." % remote_branch_url 
         return False
 
 def create(args):
