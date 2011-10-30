@@ -20,16 +20,15 @@
 #
 ##############################################################################
 
+import re
+import virtualenv
 from os import makedirs, walk
 from os.path import abspath, join, exists, dirname, basename
-from addon import Addon
 from installable import Installable
 from oerpenv import tools, defaults
-import virtualenv
 from virtualenv import subprocess
-from bzrlib.plugin import load_plugins
-from bzrlib.branch import Branch
-import re
+from addon import Addon
+from repository import Repository
 
 class NoEnvironmentConfigFileError(RuntimeError):
     def __init__(self, filepath):
@@ -94,29 +93,22 @@ class OpenERPEnvironment:
             self._config['Environment.environments'] = ','.join(self.environments) 
         tools.save_configuration(self._config, self.config_filename)
 
-    def update(self, iterate=False):
+    def update(self, iterate=False, repositories=[]):
         """
         Update sources.
 
         Arguments:
         iterate -- If true the update the function yield to an iteration.
         """
-        load_plugins()
-
-        for branch, remote_branch_url in self.repositories.items():
-            local_branch_url = join(self.sources_path, branch)
-
-            if exists(local_branch_url):
-                if iterate: yield 'update', local_branch_url, remote_branch_url
-                remote_branch = Branch.open(remote_branch_url)
-                local_branch = Branch.open(local_branch_url)
-
-                local_branch.pull(remote_branch)
-            else:
-                if iterate: yield 'create', local_branch_url, remote_branch_url
-                remote_branch = Branch.open(remote_branch_url)
-                local_branch = remote_branch.bzrdir.sprout(
-                        local_branch_url).open_branch()
+        for name, repository in self.repositories.items():
+            if len(repositories) == 0 or name in repositories:
+                if iterate:
+                    if repository.state() == 'no exists':
+                        command = 'create'
+                    else:
+                        command = 'update'
+                    yield command, repository.local_path, repository.remote_url
+                repository.update()
 
     def create_python_environment(self, name):
         """
@@ -182,9 +174,9 @@ class OpenERPEnvironment:
 
     @property
     def repositories(self):
-        return dict([ (key.split('.')[1], value)
-                     for key, value in self._config.items()
-                     if key.split('.')[0] == 'Repositories' ])
+        return dict([ (name.split('.')[1], Repository(join(self.sources_path, name.split('.')[1]), remote_source))
+                 for name, remote_source in self._config.items()
+                 if name.split('.')[0] == 'Repositories' ])
 
     @property
     def root(self):

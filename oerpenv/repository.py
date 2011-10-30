@@ -25,7 +25,7 @@ from bzrlib.branch import Branch
 from bzrlib import workingtree
 import pysvn
 
-from os.path import abspath, basename, dirname, join
+from os.path import abspath, basename, dirname, join, exists
 import imp
 import os
 import re
@@ -43,6 +43,12 @@ class RepositoryBase:
     def checkout(self):
         raise NotImplementedError
 
+    def state(self):
+        if exists(self.local_path):
+            return 'exists'
+        else:
+            return 'no exists'
+
     _url_re_ = []
 
 class BazaarRepository(RepositoryBase):
@@ -53,7 +59,8 @@ class BazaarRepository(RepositoryBase):
     def update(self):
         from bzrlib import workingtree
         wt = workingtree.WorkingTree.open(self.local_path)
-        wt.update()
+        remote_branch = Branch.open(self.remote_url)
+        wt.pull(remote_branch)
 
     def checkout(self):
         remote_branch = Branch.open(self.remote_url)
@@ -62,7 +69,7 @@ class BazaarRepository(RepositoryBase):
 
     _url_re_ = [
         re.compile('^lp:.*$'),
-        re.compile('bzr+ssh:.*')
+        re.compile('^bzr+ssh:.*')
     ]
 
 class SVNRepository(RepositoryBase):

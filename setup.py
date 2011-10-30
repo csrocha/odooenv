@@ -10,7 +10,8 @@ setup(name='oerpenv',
       url='http://www.moldeointeractive.com.ar/',
       scripts=['scripts/oerpenv'],
       packages=['oerpenv'],
-      test_suite="tests",
+      test_suite='tests',
+      install_requires=['virtualenv','bzrlib','pysvn','psycopg2'],
    )
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

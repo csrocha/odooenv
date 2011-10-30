@@ -67,7 +67,6 @@ class Test_Repository(unittest.TestCase):
 
         self._clean()
 
-
     def _prepare(self):
         self._tmpdir = '/tmp/test'
         if os.path.exists(self._tmpdir): shutil.rmtree(self._tmpdir)

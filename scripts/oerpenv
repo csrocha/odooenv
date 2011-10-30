@@ -58,7 +58,7 @@ def update(args):
     oerpenv = OpenERPEnvironment(config_filename=args.config)
 
     try:
-        for operation, local_branch_url, remote_branch_url in oerpenv.update(iterate=True):
+        for operation, local_branch_url, remote_branch_url in oerpenv.update(iterate=True, repositories=args.repositories):
             if operation == 'update':
                 print "Updating %s from %s" % (local_branch_url, remote_branch_url)
             if operation == 'create':
@@ -381,9 +381,12 @@ def main():
 
     # The update command
     parser_update = subparsers.add_parser('update', help=update.__doc__)
+    parser_update.add_argument('repositories', metavar='repositories', type=str, nargs='*',
+                             help='Repositories to update. None means all.')
     parser_update.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
                              help='Environment configuration file.')
     parser_update.set_defaults(func=update,
+                             repositories=None,
                              config=defaults.config_filename)
 
     # The create command
