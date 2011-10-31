@@ -32,7 +32,8 @@ setup(name='oerpenv',
       scripts=['scripts/oerpenv'],
       packages=['oerpenv'],
       test_suite='tests',
-      install_requires=['virtualenv','bzrlib','pysvn','psycopg2'],
+      install_requires=['virtualenv','psycopg2'],
+      #install_requires=['virtualenv','bzrlib','pysvn','psycopg2'],
    )
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

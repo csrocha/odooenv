@@ -98,6 +98,19 @@ class Addon:
             self.read_description()
             return self._description['version']
 
+        def environement_path(self, environment):
+            """
+            Return the path of the addon in the environment.
+            """
+            addons_path = environment.get_addonsourcepath()
+            return join(addons_path, self.token)
+
+        def is_enable(self, environment):
+            """
+            Return true if the addon is enabled in the environment.
+            """
+            return exists(self.environment_path(environment))
+
         @property
         def objects(self):
             """

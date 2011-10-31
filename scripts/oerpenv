@@ -42,8 +42,10 @@ def init(args):
                 print "Updating %s from %s" % (local_branch_url, remote_branch_url)
             if operation == 'create':
                 print "Creating %s from %s" % (local_branch_url, remote_branch_url)
-    except bzrlib.errors.NotBranchError:
+    except bzrlib.errors.NotBranchError, m:
+        import pdb; pdb.set_trace()
         print "Trouble creating/updating local repository."
+        print "ERROR: %s" % m
         print "Please remove %s and execute the command again" % local_branch_url 
         return False
     except bzrlib.errors.InvalidURL:
@@ -159,7 +161,7 @@ def enable_addon(args):
         return False
 
     if not to_install <= addons_set:
-        print "No available addon %s." % addon_name
+        print "No available addons '%s'." % ' '.join(to_install)
         return False
 
     while to_install and to_install <= addons_set:
@@ -246,6 +248,11 @@ def test_addon(args):
 
     dbname = "test_db_%s" % '_'.join(args.addon)
 
+    if not all([exists(join(addons_path, token)) for token in args.addon]):
+        print "Not all addons are enable." 
+        print "Execute 'oerpenv enable %s' before run this command." % ' '.join(args.addon) 
+        return False
+
     print "Create db %s" % dbname
     try:
         tools.create_database(dbname);
@@ -262,6 +269,11 @@ def test_addon(args):
         oerpenv.execute('openerp-server', initarg + ['-d', dbname] + options)
     except KeyboardInterrupt:
         print "KeyboardInterrupt event."
+    except OSError, m:
+        print "Error in the environment."
+        print "ERROR: %s" % m
+        print "If you move the environment please rebuild default python environment and check directories in environment.conf file."
+        print "If all ok, be sure you executed 'oerpenv install' before run this command."
 
     print "Drop db %s" % dbname
     tools.drop_database(dbname);

@@ -7,14 +7,22 @@ This code is distributed under the MIT license.
 Requirements:
 -------------
 
-None for now.
+You must have installed pysvn and bzrlib.
+
+In Debian and Ubuntu you can execute: 
+
+ aptitude install python-pysvn
+ aptitude install python-bzrlib
 
 Installation:
 -------------
 
-Should suffice with doing:
+With all dependencies installed you can execute:
 
  python setup.py install
+
+Usage:
+------
 
 Then the oerpenv command line is available with the following sub-commands:
 
@@ -55,11 +63,8 @@ Then the oerpenv command line is available with the following sub-commands:
 
 All configurations are stored in the environment.conf file. You can setup it by hand or using the available commands.
 
-Usage:
-------
-
- Testing a module:
- -----------------
+Testing a module:
+-----------------
 
 To create a simple OpenERP instance execute the following commands in some work directory.
 
@@ -80,10 +85,10 @@ $ oerpenv client
 
 Then the client will open and you can work.
 
- Testing more than one module:
- ----------------------------
+Develop a new addon not from zero:
+----------------------------------
 
-If you need test more than one module you can create a dummy addon in the following way:
+If you need test more than one module, or you want develop a new addon you can create a dummy addon in the following way:
 
 $ oerpenv dummy hr_test
 
@@ -95,13 +100,13 @@ Then you can execute the server in mode test again, for the new module.
 
 $ oerpenv test hr_test
 
- Searching for an object in source code:
- --------------------------------------
+Searching for an object in source code:
+--------------------------------------
 
 To search the source code of a code you can use the command 'search'.
 
- Display addon information:
- -------------------------
+Display addon information:
+-------------------------
 
 To show addon information, like description, declarated objects and path to the source you can use the command 'show'.
 

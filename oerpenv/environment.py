@@ -102,13 +102,16 @@ class OpenERPEnvironment:
         """
         for name, repository in self.repositories.items():
             if len(repositories) == 0 or name in repositories:
+                if repository.state() == 'no exists':
+                    command = 'create'
+                else:
+                    command = 'update'
                 if iterate:
-                    if repository.state() == 'no exists':
-                        command = 'create'
-                    else:
-                        command = 'update'
                     yield command, repository.local_path, repository.remote_url
-                repository.update()
+                if command == 'create':
+                    repository.checkout()
+                else:
+                    repository.update()
 
     def create_python_environment(self, name):
         """
