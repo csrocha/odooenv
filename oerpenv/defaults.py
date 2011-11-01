@@ -26,13 +26,16 @@ import getpass
 config_filename = 'environment.conf'
 version = '6.0'
 python_environment = 'default'
-directory_structure = ['sources', 'reports']
+directory_structure = ['sources', 'reports', 'snapshots']
+
+user = getpass.getuser()
 
 environment_configuration = {
     'Environment.client-config-filename': 'openerp-client.conf',
     'Environment.server-config-filename': 'openerp-server.conf',
     'Environment.sources': '%(root)s/sources',
     'Environment.reports': '%(root)s/reports',
+    'Environment.snapshots': '%(root)s/snapshots',
     'Environment.environments': 'default',
 }
 
@@ -118,12 +121,13 @@ options_client_configuration = lambda path: {
     'client.form_text_spellcheck': True,
 }
 
+
 addon_description = lambda addon_token: {
     'name': 'Dummy addon %s' % addon_token,
     'version': '0.0',
     'category': 'None',
     'description': 'Dummy addon.',
-    'author': getpass.getuser(),
+    'author': user,
     'website': 'http://www.openerp.com/',
     'depends': [],
     'init_xml': [],

@@ -3,13 +3,15 @@
 # OpenERP environment adminitrator
 #
 
-import sys, os, ConfigParser
-import virtualenv
+import sys, os, signal, ConfigParser
+import virtualenv, datetime
 from virtualenv import subprocess
 import argparse
 from os.path import abspath, exists, join, basename, dirname
 from os import remove
 import signal
+import psycopg2
+import pprint
 
 import bzrlib
 from oerpenv import *
@@ -229,7 +231,6 @@ def create_dummy_addon(args):
             file.write(defaults.init_body)
             file.write(defaults.openerp_footer)
 
-    import pprint
     with open(join(source_path, oerpenv.desc_filename), 'w') as file:
         pp = pprint.PrettyPrinter(indent=4, stream=file)
         file.write(defaults.openerp_header)
@@ -246,24 +247,34 @@ def test_addon(args):
     oerpenv.set_python_environment(args.environment)
     addons_path = oerpenv.get_addonsourcepath()
 
-    dbname = "test_db_%s" % '_'.join(args.addon)
-
     if not all([exists(join(addons_path, token)) for token in args.addon]):
         print "Not all addons are enable." 
         print "Execute 'oerpenv enable %s' before run this command." % ' '.join(args.addon) 
         return False
 
-    print "Create db %s" % dbname
-    try:
+    if args.database is None and args.snapshot is None:
+        dbname = "test_db_%s" % '_'.join(args.addon)
+        print "Create db %s" % dbname
+        try:
+            tools.create_database(dbname);
+        except RuntimeError, m:
+            print m
+            exit(-1)
+    elif args.snapshot is None:
+        print "Using database database %s." % args.database
+        dbname = args.database
+    else:
+        print "Recovering snaphost %s of the database %s." % (args.snapshot, args.database)
+        dbname = "%s_%s" % (args.database, args.snapshot)
         tools.create_database(dbname);
-    except RuntimeError, m:
-        print m
-        exit(-1)
+        infile = join(oerpenv.snapshots_path, "%s_%s.dump" % (args.database, args.snapshot))
+        P = subprocess.Popen(['pg_restore', '-c', '-Fc', '-d', dbname, infile])
+        P.wait()
 
     print "Running test %s" % ','.join(args.addon)
     try:
         initarg = sum([['--init', v] for v in args.addon ], [])
-        options = []
+        options = ['--stop-after-init']
         if oerpenv._config['Environment.version'] in '6.0':
             options += [ '--test-report-directory', oerpenv.reports_path ]
         oerpenv.execute('openerp-server', initarg + ['-d', dbname] + options)
@@ -275,8 +286,11 @@ def test_addon(args):
         print "If you move the environment please rebuild default python environment and check directories in environment.conf file."
         print "If all ok, be sure you executed 'oerpenv install' before run this command."
 
-    print "Drop db %s" % dbname
-    tools.drop_database(dbname);
+    if args.database is not None and args.snapshot is None:
+        return
+    else:
+        print "Drop db %s" % dbname
+        tools.drop_database(dbname);
 
 def start_client(args):
     """
@@ -292,6 +306,47 @@ def start_client(args):
         oerpenv.execute('openerp-client', ['-c', client_config_filename])
     except KeyboardInterrupt:
         print "KeyboardInterrupt event."
+
+def start_server(args):
+    """
+    Start the server.
+    """
+    oerpenv = OpenERPEnvironment(config_filename=args.config)
+    oerpenv.set_python_environment(args.environment)
+
+    dbname = args.database[0] 
+
+    try:
+        pidfilename = join(oerpenv.root_path, '.server_pid')
+        if exists(pidfilename):
+            print "A server is running or .server_pid has not been deleted at the end of the server."
+            print "Execute 'oerpenv stop' to stop the server and remove this file."
+            return False
+        pid = oerpenv.execute('openerp-server', ['-d', dbname], no_wait=True)
+        f = open(pidfilename, 'w')
+        f.write("%i" % pid)
+        f.close()
+    except KeyboardInterrupt:
+        print "KeyboardInterrupt event."
+    except OSError, m:
+        print "Error in the environment."
+        print "ERROR: %s" % m
+        print "If you move the environment please rebuild default python environment and check directories in environment.conf file."
+        print "If all ok, be sure you executed 'oerpenv install' before run this command."
+
+def stop_server(args):
+    """
+    Stop the server.
+    """
+    oerpenv = OpenERPEnvironment(config_filename=args.config)
+    oerpenv.set_python_environment(args.environment)
+
+    pidfilename = join(oerpenv.root_path, '.server_pid')
+    f = open(pidfilename, 'r')
+    pid = int(f.readline())
+    f.close()
+    os.kill(pid, signal.SIGINT)
+    os.remove(pidfilename)
 
 def search_addon(args):
     """
@@ -330,45 +385,108 @@ def show_addon(args):
         print "Inhereted Objects:", ','.join(objects[1])
         print "Source:", addon.path 
 
-commands = [
-    ('Environment operations', [
-        ('init', init),
-        ('create', create),
-        ('install', install),
-    ]),
-    ('Repository operations', [
-        ('add', add),
-        ('update', update),
-    ]),
-    ('Observations', [
-        ('list-addons', list_addons),
-        ('list-installables', list_installables),
-        ('search', search_addon),
-        ('show', show_addon),
-    ]),
-    ('Addons operations', [
-        ('dummy', create_dummy_addon),
-        ('enable', enable_addon),
-        ('disable', disable_addon),
-    ]),
-    ('Testing operations', [
-        ('test', test_addon),
-        ('client', start_client),
-    ]),
-]
+def list_db(args):
+    """
+    List availables databases.
+    """
+    try:
+        conn = psycopg2.connect("")
+        cur = conn.cursor()
+        cur.execute("select datname from pg_database where datdba=(select usesysid from pg_user where usename=%s) and datname not in ('template0', 'template1', 'postgres') order by datname", (defaults.user,))
+        rows = cur.fetchall()
+        for (table,) in rows:
+            print table
+    except psycopg2.OperationalError, m:
+        print "Is postgres running?"
+        print "ERROR: %s" % m
 
-commands_dict = dict(sum([ command_pairs for section, command_pairs in commands ], []))
+def shell_db(args):
+    """
+    Execute a shell for sql commands over the database.
+    """
+    import subprocess
+    P = subprocess.Popen(['psql', args.database])
+    P.wait()
+    pass
 
-def _help():
-    s = "oerpenv [command] [options]\n"
-    s += "The OpenERP environment administrator help you to administrate OpenERP environments. You can use the following commands.\n\n"
-    for section, command_pairs in commands:
-        s += " -- %s\n" % section
-        for command, function in command_pairs:
-            s += str(commands_dict[command].__doc__)
-        s += "\n"
-    s += "\nAll configurations are stored in the environment.conf file. You can setup it by hand or using the available commands."
-    return s
+def create_db(args):
+    """
+    Create a void database.
+    """
+    try:
+        tools.create_database(args.database[0])
+    except psycopg2.OperationalError, m:
+        print "Is postgres running?"
+        print "ERROR: %s" % m
+
+def drop_db(args):
+    """
+    Remove a database.
+    """
+    try:
+        tools.drop_database(args.database[0])
+    except psycopg2.OperationalError, m:
+        print "Is postgres running?"
+        print "ERROR: %s" % m
+
+def init_db(args):
+    """
+    Prepare a minimalistic OpenERP database.
+    """
+    oerpenv = OpenERPEnvironment(config_filename=args.config)
+    oerpenv.set_python_environment(args.environment)
+
+    try:
+        oerpenv.execute('openerp-server', ['--init', 'base', '-d', args.database[0], '--stop-after-init'])
+    except KeyboardInterrupt:
+        print "KeyboardInterrupt event."
+    except OSError, m:
+        print "Error in the environment."
+        print "ERROR: %s" % m
+        print "If you move the environment please rebuild default python environment and check directories in environment.conf file."
+        print "If all ok, be sure you executed 'oerpenv install' before run this command."
+    pass
+
+def dump_db(args):
+    """
+    Create a backup file of a database.
+    """
+    dbname = args.database[0]
+    if args.outfile is None:
+        outfile = "%s.dump" % dbname
+    else:
+        outfile = args.outfile
+    P = subprocess.Popen(['pg_dump', '-Fc', '--compress', '9', '-f', outfile, dbname])
+    P.wait()
+    pass
+
+def restore_db(args):
+    """
+    Restore a backup file.
+    """
+    dbname = args.database[0]
+    if args.infile is None:
+        infile = "%s.dump" % dbname
+    else:
+        infile = args.infile
+    P = subprocess.Popen(['pg_restore', '-Fc', '-d', dbname, infile])
+    P.wait()
+
+def snapshot_db(args):
+    """
+    Generate an snapshot for a database.
+    """
+    oerpenv = OpenERPEnvironment(config_filename=args.config)
+
+    snapshots = oerpenv.snapshots_path
+
+    dbname = args.database[0]
+    snapshot_name = args.name
+    import pdb; pdb.set_trace()
+    outfile = join(snapshots, "%s_%s.dump" % (dbname, snapshot_name))
+    
+    P = subprocess.Popen(['pg_dump', '-Fc', '--compress', '9', '-f', outfile, dbname])
+    P.wait()
 
 def main():
     parser = argparse.ArgumentParser()
@@ -494,6 +612,10 @@ def main():
     parser_test_addon = subparsers.add_parser('test', help=test_addon.__doc__)
     parser_test_addon.add_argument('addon', metavar='addon', type=str, nargs='+',
                              help='Addon name.')
+    parser_test_addon.add_argument('--database', '-d', metavar='database', type=str, nargs='?',
+                             help='Database name.')
+    parser_test_addon.add_argument('--snapshot', '-s', metavar='snapshot', type=str, nargs='?',
+                             help='Snapshot name.')
     parser_test_addon.add_argument('--environment', '-e', metavar='environment', type=str, nargs='?',
                              help='Python environment name.')
     parser_test_addon.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
@@ -502,13 +624,33 @@ def main():
                              environment=defaults.python_environment,
                              config=defaults.config_filename)
 
-    # The start_client command
+    # The client command
     parser_start_client = subparsers.add_parser('client', help=start_client.__doc__)
     parser_start_client.add_argument('--environment', '-e', metavar='environment', type=str, nargs='?',
                              help='Python environment name.')
     parser_start_client.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
                              help='Environment configuration file.')
     parser_start_client.set_defaults(func=start_client,
+                             environment=defaults.python_environment,
+                             config=defaults.config_filename)
+
+    # The start subcommand
+    parser_start_server = subparsers.add_parser('server start', help=start_server.__doc__)
+    parser_start_server.add_argument('database', metavar='database', type=str, nargs=1,
+                             help='Database name.')
+    parser_start_server.add_argument('--environment', '-e', metavar='environment', type=str, nargs='?',
+                             help='Python environment name.')
+    parser_start_server.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
+                             help='Environment configuration file.')
+    parser_start_server.set_defaults(func=start_server,
+                             environment=defaults.python_environment,
+                             config=defaults.config_filename)
+
+    # The stop subcommand
+    parser_stop_server = subparsers.add_parser('server stop', help=stop_server.__doc__)
+    parser_stop_server.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
+                             help='Environment configuration file.')
+    parser_stop_server.set_defaults(func=stop_server,
                              environment=defaults.python_environment,
                              config=defaults.config_filename)
 
@@ -534,6 +676,81 @@ def main():
                              help='Environment configuration file.')
     parser_show_addon.set_defaults(func=show_addon,
                              environment=defaults.python_environment,
+                             config=defaults.config_filename)
+
+    # The list-db command
+    parser_list_db = subparsers.add_parser('list-db', help=list_db.__doc__)
+    parser_list_db.set_defaults(func=list_db)
+
+    # The shell-db command
+    parser_shell_db = subparsers.add_parser('shell-db', help=shell_db.__doc__)
+    parser_shell_db.add_argument('database', metavar='database', type=str, nargs='?',
+                             help='Database name.')
+    parser_shell_db.set_defaults(func=shell_db,
+                             database=defaults.user)
+
+    # The create-db command
+    parser_create_db = subparsers.add_parser('create-db', help=create_db.__doc__)
+    parser_create_db.add_argument('database', metavar='database', type=str, nargs=1,
+                             help='Database name.')
+    parser_create_db.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
+                             help='Environment configuration file.')
+    parser_create_db.set_defaults(func=create_db,
+                             config=defaults.config_filename)
+
+    # The drop-db command
+    parser_drop_db = subparsers.add_parser('drop-db', help=drop_db.__doc__)
+    parser_drop_db.add_argument('database', metavar='database', type=str, nargs=1,
+                             help='Database name.')
+    parser_drop_db.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
+                             help='Environment configuration file.')
+    parser_drop_db.set_defaults(func=drop_db,
+                             config=defaults.config_filename)
+
+    # The init-db command
+    parser_init_db = subparsers.add_parser('init-db', help=init_db.__doc__)
+    parser_init_db.add_argument('database', metavar='database', type=str, nargs=1,
+                             help='Database name.')
+    parser_init_db.add_argument('--environment', '-e', metavar='environment', type=str, nargs='?',
+                             help='Python environment name.')
+    parser_init_db.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
+                             help='Environment configuration file.')
+    parser_init_db.set_defaults(func=init_db,
+                             environment=defaults.python_environment,
+                             config=defaults.config_filename)
+
+    # The dump-db command
+    parser_dump_db = subparsers.add_parser('dump-db', help=dump_db.__doc__)
+    parser_dump_db.add_argument('database', metavar='database', type=str, nargs=1,
+                             help='Database name.')
+    parser_dump_db.add_argument('--outfile', '-f', metavar='outfile', type=str, nargs='?',
+                             help='Target file for the backup.')
+    parser_dump_db.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
+                             help='Environment configuration file.')
+    parser_dump_db.set_defaults(func=dump_db,
+                             config=defaults.config_filename)
+
+    # The restore-db command
+    parser_restore_db = subparsers.add_parser('restore-db', help=restore_db.__doc__)
+    parser_restore_db.add_argument('database', metavar='database', type=str, nargs=1,
+                             help='Database name.')
+    parser_restore_db.add_argument('--infile', '-f', metavar='infile', type=str, nargs='?',
+                             help='Backup file.')
+    parser_restore_db.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
+                             help='Environment configuration file.')
+    parser_restore_db.set_defaults(func=restore_db,
+                             config=defaults.config_filename)
+
+    # The snapshot-db command
+    parser_snapshot_db = subparsers.add_parser('snapshot-db', help=snapshot_db.__doc__)
+    parser_snapshot_db.add_argument('database', metavar='database', type=str, nargs=1,
+                             help='Database name.')
+    parser_snapshot_db.add_argument('name', metavar='name', type=str, nargs='?',
+                             help='Snapshot name.')
+    parser_snapshot_db.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
+                             help='Environment configuration file.')
+    parser_snapshot_db.set_defaults(func=snapshot_db,
+                             name=datetime.datetime.today().strftime("%Y%m%d%H%M%S"),
                              config=defaults.config_filename)
 
     # Parse and execute

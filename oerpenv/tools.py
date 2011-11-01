@@ -27,10 +27,7 @@ def create_database(dbname):
         """
         Create a postgresql database.
         """
-        try:
-            conn = psycopg2.connect("")
-        except:
-            raise RuntimeError("Is postgres running?")
+        conn = psycopg2.connect("")
         conn.set_isolation_level(0)
         cur = conn.cursor()
         try:

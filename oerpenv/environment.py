@@ -198,6 +198,10 @@ class OpenERPEnvironment:
         return self._config['Environment.reports']
 
     @property
+    def snapshots_path(self):
+        return self._config['Environment.snapshots']
+
+    @property
     def addons_dir(self):
         return self._config['Environment.addons']
 
@@ -216,12 +220,17 @@ class OpenERPEnvironment:
         self.py_environment_name = name
         self.env_path = join(self.root_path, self.py_environment_name)
 
-    def execute(self, command, args):
+    def execute(self, command, args, no_wait=False):
         """
         Execute a command in the python environment defined in set_python_environment()
         """
-        P = subprocess.Popen([join(self.env_path,'bin',command)] + args)
-        P.wait()
+        if no_wait:
+            P = subprocess.Popen([join(self.env_path,'bin',command)] + args)
+            return P.pid
+        else:
+            P = subprocess.Popen([join(self.env_path,'bin',command)] + args)
+            P.wait()
+            return None
 
     def get_addonsourcepath(self):
         """
