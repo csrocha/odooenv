@@ -264,12 +264,11 @@ def test_addon(args):
         print "Using database database %s." % args.database
         dbname = args.database
     else:
-        print "Recovering snaphost %s of the database %s." % (args.snapshot, args.database)
-        dbname = "%s_%s" % (args.database, args.snapshot)
-        tools.create_database(dbname);
-        infile = join(oerpenv.snapshots_path, "%s_%s.dump" % (args.database, args.snapshot))
-        P = subprocess.Popen(['pg_restore', '-c', '-Fc', '-d', dbname, infile])
-        P.wait()
+        print "Recovering snapshot '%s' of the database '%s'." % (args.snapshot, args.database)
+        if not tools.recover_snapshot(args.database, args.snapshot, oerpenv):
+            print "ERROR: Cant recover snapshot %s." % args.snapshot
+            return False
+        dbname = args.database
 
     print "Running test %s" % ','.join(args.addon)
     try:
@@ -286,11 +285,14 @@ def test_addon(args):
         print "If you move the environment please rebuild default python environment and check directories in environment.conf file."
         print "If all ok, be sure you executed 'oerpenv install' before run this command."
 
-    if args.database is not None and args.snapshot is None:
-        return
+    if ((args.database is not None and args.snapshot is None) or
+        (args.not_drop_db)):
+        pass
     else:
         print "Drop db %s" % dbname
         tools.drop_database(dbname);
+
+    print "TEST FINISHED."
 
 def start_client(args):
     """
@@ -315,6 +317,16 @@ def start_server(args):
     oerpenv.set_python_environment(args.environment)
 
     dbname = args.database[0] 
+    options = []
+
+    if args.debug:
+        options = [ '--debug' ]
+
+    if not args.snapshot is None:
+        print "Recovering snapshot '%s' of the database '%s'." % (args.snapshot, args.database[0])
+        if not tools.recover_snapshot(args.database[0], args.snapshot, oerpenv):
+            print "ERROR: Cant recover snapshot %s." % args.snapshot
+            return False
 
     try:
         pidfilename = join(oerpenv.root_path, '.server_pid')
@@ -322,10 +334,12 @@ def start_server(args):
             print "A server is running or .server_pid has not been deleted at the end of the server."
             print "Execute 'oerpenv stop' to stop the server and remove this file."
             return False
-        pid = oerpenv.execute('openerp-server', ['-d', dbname], no_wait=True)
-        f = open(pidfilename, 'w')
-        f.write("%i" % pid)
-        f.close()
+        pid = oerpenv.execute('openerp-server', ['-d', dbname] + options, no_wait=not args.debug)
+        if not args.debug:
+            f = open(pidfilename, 'w')
+            f.write("%i" % pid)
+            f.close()
+            
     except KeyboardInterrupt:
         print "KeyboardInterrupt event."
     except OSError, m:
@@ -345,12 +359,16 @@ def stop_server(args):
     f = open(pidfilename, 'r')
     pid = int(f.readline())
     f.close()
-    os.kill(pid, signal.SIGINT)
+    try:
+        os.kill(pid, signal.SIGINT)
+    except OSError, m:
+        print "El proceso no esta corriendo."
+        print "ERROR: %s" % m
     os.remove(pidfilename)
 
-def search_addon(args):
+def search_object(args):
     """
-    Search addon with this object.
+    Search addons with this object.
     """
     oerpenv = OpenERPEnvironment(config_filename=args.config)
     oerpenv.set_python_environment(args.environment)
@@ -363,6 +381,17 @@ def search_addon(args):
     for addon in oerpenv.addons(inherited_filter=args.objects[0]):
         print "%35s:%s" % (addon.token, addon.name)
  
+def search_entity(args):
+    """
+    Search in xml some declared entity with id
+    """
+    oerpenv = OpenERPEnvironment(config_filename=args.config)
+    oerpenv.set_python_environment(args.environment)
+ 
+    for addon in oerpenv.addons(entity_filter=args.entity[0]):
+        print "%35s:%s:%s" % (addon.token, addon.name, ':'.join([ e for e in addon.entity(args.entity[0])]))
+        #for filename, entity, = addon.entities
+
 def show_addon(args):
     """
     Show addon information.
@@ -482,12 +511,13 @@ def snapshot_db(args):
 
     dbname = args.database[0]
     snapshot_name = args.name
-    import pdb; pdb.set_trace()
     outfile = join(snapshots, "%s_%s.dump" % (dbname, snapshot_name))
     
     P = subprocess.Popen(['pg_dump', '-Fc', '--compress', '9', '-f', outfile, dbname])
-    P.wait()
-
+    r = P.wait()
+    if r:
+        print "ERROR: Cant dump the snapshot."
+ 
 def main():
     parser = argparse.ArgumentParser()
 
@@ -574,7 +604,7 @@ def main():
 
     # The enable_addon command
     parser_enable_addon = subparsers.add_parser('enable', help=enable_addon.__doc__)
-    parser_enable_addon.add_argument('addon', metavar='addon', type=str, nargs=1,
+    parser_enable_addon.add_argument('addon', metavar='addon', type=str, nargs='+',
                              help='Addon name.')
     parser_enable_addon.add_argument('--environment', '-e', metavar='environment', type=str, nargs='?',
                              help='Python environment name.')
@@ -616,6 +646,8 @@ def main():
                              help='Database name.')
     parser_test_addon.add_argument('--snapshot', '-s', metavar='snapshot', type=str, nargs='?',
                              help='Snapshot name.')
+    parser_test_addon.add_argument('--not-drop-db', '-D', action='store_true',
+                             help='Not drop db at end.')
     parser_test_addon.add_argument('--environment', '-e', metavar='environment', type=str, nargs='?',
                              help='Python environment name.')
     parser_test_addon.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
@@ -635,34 +667,50 @@ def main():
                              config=defaults.config_filename)
 
     # The start subcommand
-    parser_start_server = subparsers.add_parser('server start', help=start_server.__doc__)
+    parser_start_server = subparsers.add_parser('server-start', help=start_server.__doc__)
     parser_start_server.add_argument('database', metavar='database', type=str, nargs=1,
                              help='Database name.')
     parser_start_server.add_argument('--environment', '-e', metavar='environment', type=str, nargs='?',
                              help='Python environment name.')
     parser_start_server.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
                              help='Environment configuration file.')
+    parser_start_server.add_argument('--snapshot', '-s', metavar='snapshot', type=str, nargs='?',
+                             help='Snapshot of the database.')
+    parser_start_server.add_argument('--debug', '-d', action='store_true',
+                             help='Start server in debug mode. Stop until an exception.')
     parser_start_server.set_defaults(func=start_server,
                              environment=defaults.python_environment,
                              config=defaults.config_filename)
 
     # The stop subcommand
-    parser_stop_server = subparsers.add_parser('server stop', help=stop_server.__doc__)
+    parser_stop_server = subparsers.add_parser('server-stop', help=stop_server.__doc__)
     parser_stop_server.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
                              help='Environment configuration file.')
     parser_stop_server.set_defaults(func=stop_server,
                              environment=defaults.python_environment,
                              config=defaults.config_filename)
 
-    # The search_addon command
-    parser_search_addon = subparsers.add_parser('search', help=search_addon.__doc__)
-    parser_search_addon.add_argument('objects', metavar='objects', type=str, nargs=1,
+    # The search_object command
+    parser_search_object = subparsers.add_parser('search-object', help=search_object.__doc__)
+    parser_search_object.add_argument('objects', metavar='objects', type=str, nargs=1,
                              help='Object name.')
-    parser_search_addon.add_argument('--environment', '-e', metavar='environment', type=str, nargs='?',
+    parser_search_object.add_argument('--environment', '-e', metavar='environment', type=str, nargs='?',
                              help='Python environment name.')
-    parser_search_addon.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
+    parser_search_object.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
                              help='Environment configuration file.')
-    parser_search_addon.set_defaults(func=search_addon,
+    parser_search_object.set_defaults(func=search_object,
+                             environment=defaults.python_environment,
+                             config=defaults.config_filename)
+
+    # The search_entity command
+    parser_search_entity = subparsers.add_parser('search-entity', help=search_entity.__doc__)
+    parser_search_entity.add_argument('entity', metavar='entity', type=str, nargs=1,
+                             help='Entity name.')
+    parser_search_entity.add_argument('--environment', '-e', metavar='environment', type=str, nargs='?',
+                             help='Python environment name.')
+    parser_search_entity.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
+                             help='Environment configuration file.')
+    parser_search_entity.set_defaults(func=search_entity,
                              environment=defaults.python_environment,
                              config=defaults.config_filename)
 

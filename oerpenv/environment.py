@@ -151,7 +151,7 @@ class OpenERPEnvironment:
                 except RuntimeError:
                     pass
 
-    def addons(self, token_filter=None, object_filter=None, inherited_filter=None):
+    def addons(self, token_filter=None, object_filter=None, inherited_filter=None, entity_filter=None):
         if not token_filter is None:
             filter_re = re.compile(token_filter)
             filter_t = lambda s: filter_re.search(s) != None
@@ -168,10 +168,15 @@ class OpenERPEnvironment:
         else:
             filter_i = lambda a: True
 
+        if not entity_filter is None:
+            filter_e = lambda a: entity_filter in a.entities
+        else:
+            filter_e = lambda a: True
+
         for path, ds, fs in walk(self._config['Environment.sources'], followlinks=True):
             if self._config['Environment.desc-filename'] in fs and filter_t(basename(path)):
                 addon = Addon(join(path, self._config['Environment.desc-filename']))
-                if filter_o(addon) and filter_i(addon):
+                if filter_o(addon) and filter_i(addon) and filter_e(addon):
                     yield addon
                 ds = []
 

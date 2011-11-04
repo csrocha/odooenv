@@ -20,7 +20,9 @@
 #
 ##############################################################################
 
+from os.path import join
 import sys, os, ConfigParser
+import subprocess
 import psycopg2
 
 def create_database(dbname):
@@ -88,5 +90,14 @@ def load_configuration(filename):
         except Exception, e:
             print 'Unable to read config file %s !'% filename
         return options
+
+def recover_snapshot(dbname, snapshot, oerpenv):
+    create_database(dbname);
+    infile = join(oerpenv.snapshots_path, "%s_%s.dump" % (dbname, snapshot))
+    P = subprocess.Popen(['pg_restore', '-Fc', '-d', dbname, infile])
+    r = P.wait()
+    if r:
+        return False
+    return True
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

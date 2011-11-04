@@ -117,22 +117,64 @@ class Addon:
             Return a duple with a list of objects declared and inherited in the addon.
             """
             import re
-            namesearch = re.compile(r'^\s*_name\s*=\s*["\']([a-z][\w\.]*)["\']')
-            inheritsearch = re.compile(r'^\s*_inherit\s*=\s*["\']([a-z][\w\.]*)["\']')
-            search_files = set([])
-
-            for p, ds, fs in os.walk(self.path):
-                    search_files.update(set([ join(p,f) for f in fs if f[-3:]=='.py']))
-
             objects = set()
             inherited = set()
-            for filename in search_files:
-                    with open(filename) as file:
-                            lines = file.readlines()
-                            namematchs = [ namesearch.search(line) for line in lines ]
-                            inheritmatchs = [ inheritsearch.search(line) for line in lines ]
-                            objects.update([ match.group(1) for match in namematchs if match != None ])
-                            inherited.update([ match.group(1) for match in inheritmatchs if match != None ])
+            for filename, name, match in self.search( 
+                {'object':re.compile(r'^\s*_name\s*=\s*["\']([a-z][\w\.]*)["\']'),
+                 'inherit':re.compile(r'^\s*_inherit\s*=\s*["\']([a-z][\w\.]*)["\']'),},
+                re.compile(r'^.*\.py$')
+            ):
+                if name == 'object':
+                    objects.update(match)
+                else:
+                    inherited.update(match)
             return objects - inherited, inherited
+
+        @property
+        def entities(self):
+            """
+            Return a list of entities declared in xml.
+            """
+            import re
+            record = set()
+            items = {}
+            for filename, name, match in self.search( 
+                {'record':re.compile(r'id\s*=\s*["\']([^"]*)["\']'), },
+                re.compile(r'^.*\.xml$')
+            ):
+                if name == 'record':
+                    record.update(match)
+            return record
+
+        def entity(self, entity):
+            """
+            Return a entity information.
+            """
+            import re
+            record = set()
+            items = {}
+            for filename, name, match in self.search( 
+                {'record':re.compile(r'id\s*=\s*["\']([^"]*)["\']'), },
+                re.compile(r'^.*\.xml$')
+            ):
+                if name == 'record' and entity in match:
+                    yield filename
+
+        def search(self, re_patterns, re_file):
+            """
+            Search in files
+            """
+            search_files = set()
+            for p, ds, fs in os.walk(self.path):
+                    search_files.update(set([ join(p,f) for f in fs if re_file.search(f)]))
+
+            for filename in search_files:
+                with open(filename) as file:
+                    lines = file.readlines()
+                    for re_name, re_pattern in re_patterns.items():
+                        matchs = [ re_pattern.search(line) for line in lines ]
+                        matchs = [ match.group(1) for match in matchs if match != None ]
+                        if len(matchs) > 0:
+                            yield filename, re_name, matchs
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
