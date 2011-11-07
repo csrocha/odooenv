@@ -32,7 +32,7 @@ setup(name='oerpenv',
       scripts=['scripts/oerpenv'],
       packages=['oerpenv'],
       test_suite='tests',
-      install_requires=['virtualenv','psycopg2'],
+      install_requires=['virtualenv','psycopg2','argparse'],
       #install_requires=['virtualenv','bzrlib','pysvn','psycopg2'],
    )
 
