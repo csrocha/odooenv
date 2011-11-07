@@ -156,7 +156,10 @@ def enable_addon(args):
     addons = dict([ (addon.token, addon) for addon in oerpenv.addons() ])
     addons_set = set(addons.keys())
 
-    to_install = set( args.addon )
+    if 'all' in args.addon:
+        to_install = addons_set
+    else:
+        to_install = set( args.addon )
 
     if not exists(addons_path):
         print "Execute 'oerpenv install' before 'oerpenv enable'"
@@ -166,20 +169,29 @@ def enable_addon(args):
         print "No available addons '%s'." % ' '.join(to_install)
         return False
 
-    while to_install and to_install <= addons_set:
-        args.addon = to_install.pop()
+    who_install = {}
 
-        addon = addons[args.addon]
+    while to_install and to_install <= addons_set:
+        addon_name = to_install.pop()
+
+        if addon_name in addons:
+            addon = addons[addon_name]
+        else:
+            print "ERROR: %s try to install %s, but is unavailable." % (who_install[addon_name], addon_name)
+            continue
+
+        for item in addon.depends:
+            who_install[item] = addon_name
 
         to_install.update(addon.depends)
 
-        where_install = join(addons_path, args.addon) 
+        where_install = join(addons_path, addon_name) 
 
         if exists(where_install):
-            print "Updating %s" % args.addon
+            print "Updating %s" % addon_name
             os.remove(where_install)
         else:
-            print "Installing %s" % args.addon
+            print "Installing %s" % addon_name
 
         os.symlink(addon.path, where_install)
 
@@ -309,7 +321,7 @@ def start_client(args):
     except KeyboardInterrupt:
         print "KeyboardInterrupt event."
 
-def start_server(args):
+def server_start(args):
     """
     Start the server.
     """
@@ -320,14 +332,16 @@ def start_server(args):
     options = []
 
     if args.debug:
-        options = [ '--debug' ]
+        options += [ '--debug' ]
+
+    if args.production:
+        options += [ '--without-demo=all','--test-disable' ]
 
     if not args.snapshot is None:
         print "Recovering snapshot '%s' of the database '%s'." % (args.snapshot, args.database[0])
         if not tools.recover_snapshot(args.database[0], args.snapshot, oerpenv):
             print "ERROR: Cant recover snapshot %s." % args.snapshot
             return False
-
     try:
         pidfilename = join(oerpenv.root_path, '.server_pid')
         if exists(pidfilename):
@@ -343,12 +357,12 @@ def start_server(args):
     except KeyboardInterrupt:
         print "KeyboardInterrupt event."
     except OSError, m:
-        print "Error in the environment."
+        print "Environment Error."
         print "ERROR: %s" % m
         print "If you move the environment please rebuild default python environment and check directories in environment.conf file."
         print "If all ok, be sure you executed 'oerpenv install' before run this command."
 
-def stop_server(args):
+def server_stop(args):
     """
     Stop the server.
     """
@@ -356,15 +370,20 @@ def stop_server(args):
     oerpenv.set_python_environment(args.environment)
 
     pidfilename = join(oerpenv.root_path, '.server_pid')
-    f = open(pidfilename, 'r')
-    pid = int(f.readline())
-    f.close()
     try:
+        with open(pidfilename, 'r') as f:
+            pid = int(f.readline())
         os.kill(pid, signal.SIGINT)
-    except OSError, m:
-        print "El proceso no esta corriendo."
+    except IOError, m:
+        print "No server information."
         print "ERROR: %s" % m
+        return False
+    except OSError, m:
+        print "No server running."
+        print "ERROR: %s" % m
+        return False
     os.remove(pidfilename)
+    return True
 
 def search_object(args):
     """
@@ -667,26 +686,28 @@ def main():
                              config=defaults.config_filename)
 
     # The start subcommand
-    parser_start_server = subparsers.add_parser('server-start', help=start_server.__doc__)
-    parser_start_server.add_argument('database', metavar='database', type=str, nargs=1,
+    parser_server_start = subparsers.add_parser('server-start', help=server_start.__doc__)
+    parser_server_start.add_argument('database', metavar='database', type=str, nargs=1,
                              help='Database name.')
-    parser_start_server.add_argument('--environment', '-e', metavar='environment', type=str, nargs='?',
+    parser_server_start.add_argument('--environment', '-e', metavar='environment', type=str, nargs='?',
                              help='Python environment name.')
-    parser_start_server.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
+    parser_server_start.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
                              help='Environment configuration file.')
-    parser_start_server.add_argument('--snapshot', '-s', metavar='snapshot', type=str, nargs='?',
+    parser_server_start.add_argument('--snapshot', '-s', metavar='snapshot', type=str, nargs='?',
                              help='Snapshot of the database.')
-    parser_start_server.add_argument('--debug', '-d', action='store_true',
+    parser_server_start.add_argument('--debug', '-d', action='store_true',
                              help='Start server in debug mode. Stop until an exception.')
-    parser_start_server.set_defaults(func=start_server,
+    parser_server_start.add_argument('--production', '-p', action='store_true',
+                             help='Start server in production mode. No test and demos.')
+    parser_server_start.set_defaults(func=server_start,
                              environment=defaults.python_environment,
                              config=defaults.config_filename)
 
     # The stop subcommand
-    parser_stop_server = subparsers.add_parser('server-stop', help=stop_server.__doc__)
-    parser_stop_server.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
+    parser_server_stop = subparsers.add_parser('server-stop', help=server_stop.__doc__)
+    parser_server_stop.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
                              help='Environment configuration file.')
-    parser_stop_server.set_defaults(func=stop_server,
+    parser_server_stop.set_defaults(func=server_stop,
                              environment=defaults.python_environment,
                              config=defaults.config_filename)
 

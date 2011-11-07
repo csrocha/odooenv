@@ -92,12 +92,16 @@ def load_configuration(filename):
         return options
 
 def recover_snapshot(dbname, snapshot, oerpenv):
-    create_database(dbname);
-    infile = join(oerpenv.snapshots_path, "%s_%s.dump" % (dbname, snapshot))
-    P = subprocess.Popen(['pg_restore', '-Fc', '-d', dbname, infile])
-    r = P.wait()
-    if r:
+    try:
+        create_database(dbname);
+        infile = join(oerpenv.snapshots_path, "%s_%s.dump" % (dbname, snapshot))
+        P = subprocess.Popen(['pg_restore', '-Fc', '-d', dbname, infile])
+        r = P.wait()
+        if r:
+            return False
+        return True
+    except psycopg2.OperationalError:
+        print "PostgreSQL server is not running or other server is locking the database."
         return False
-    return True
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
