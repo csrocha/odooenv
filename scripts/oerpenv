@@ -331,7 +331,7 @@ def server_start(args):
     options = []
 
     if not args.database is None:
-        option += [ '-d', args.database ]
+        options += [ '-d', args.database ]
 
     if args.debug:
         options += [ '--debug' ]
