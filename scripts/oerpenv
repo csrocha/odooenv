@@ -328,8 +328,10 @@ def server_start(args):
     oerpenv = OpenERPEnvironment(config_filename=args.config)
     oerpenv.set_python_environment(args.environment)
 
-    dbname = args.database[0] 
     options = []
+
+    if not args.database is None:
+        option += [ '-d', args.database ]
 
     if args.debug:
         options += [ '--debug' ]
@@ -348,7 +350,7 @@ def server_start(args):
             print "A server is running or .server_pid has not been deleted at the end of the server."
             print "Execute 'oerpenv stop' to stop the server and remove this file."
             return False
-        pid = oerpenv.execute('openerp-server', ['-d', dbname] + options, no_wait=not args.debug)
+        pid = oerpenv.execute('openerp-server', options, no_wait=not args.debug)
         if not args.debug:
             f = open(pidfilename, 'w')
             f.write("%i" % pid)
@@ -687,7 +689,7 @@ def main():
 
     # The start subcommand
     parser_server_start = subparsers.add_parser('server-start', help=server_start.__doc__)
-    parser_server_start.add_argument('database', metavar='database', type=str, nargs=1,
+    parser_server_start.add_argument('database', metavar='database', type=str, nargs='?',
                              help='Database name.')
     parser_server_start.add_argument('--environment', '-e', metavar='environment', type=str, nargs='?',
                              help='Python environment name.')
