@@ -340,8 +340,11 @@ def server_start(args):
         options += [ '--without-demo=all','--test-disable' ]
 
     if not args.snapshot is None:
-        print "Recovering snapshot '%s' of the database '%s'." % (args.snapshot, args.database[0])
-        if not tools.recover_snapshot(args.database[0], args.snapshot, oerpenv):
+        if args.database is None:
+            print "ERROR: Cant recover snapshot %s, because not defined database" % args.snapshot
+            return False
+        print "Recovering snapshot '%s' of the database '%s'." % (args.snapshot, args.database)
+        if not tools.recover_snapshot(args.database, args.snapshot, oerpenv):
             print "ERROR: Cant recover snapshot %s." % args.snapshot
             return False
     try:
