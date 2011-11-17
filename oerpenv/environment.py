@@ -231,7 +231,11 @@ class OpenERPEnvironment:
 
     @property
     def production(self):
-        return self._config.get('Environment.snapshot', False)
+        return self._config.get('Environment.production', False)
+
+    @property
+    def language(self):
+        return self._config.get('Environment.language', None)
 
     @property
     def snapshot(self):

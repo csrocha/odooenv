@@ -333,7 +333,8 @@ def server_start(args):
     debug =  args.debug or oerpenv.debug
     update =  args.update if args.update is not None else oerpenv.modules_update
     install =  args.install if args.install is not None else oerpenv.modules_install
-    production =  args.production if args.production is not None else oerpenv.production
+    production =  args.production or oerpenv.production
+    language =  args.language if args.language is not None else oerpenv.language
 
     options = []
 
@@ -348,6 +349,9 @@ def server_start(args):
 
     if production:
         options += [ '--without-demo=all','--test-disable' ]
+
+    if language is not None:
+        options += [ '--load-language',language,'--language',language ]
 
     if not update is None and len(update) > 0:
         options += sum([ ['-u', module ] for module in update ], [])
@@ -369,6 +373,7 @@ def server_start(args):
             print "A server is running or .server_pid has not been deleted at the end of the server."
             print "Execute 'oerpenv stop' to stop the server and remove this file."
             return False
+        print "Running with options: %s" % ' '.join(options)
         pid = oerpenv.execute('openerp-server', options, no_wait=not debug)
         if not debug:
             f = open(pidfilename, 'w')
@@ -723,6 +728,8 @@ def main():
                              help='Update modules')
     parser_server_start.add_argument('--install', '-i', metavar='MODULES', type=str, nargs='*',
                              help='Install modules')
+    parser_server_start.add_argument('--language', '-l', metavar='LANG', type=str, nargs='?',
+                             help='Default Language')
     parser_server_start.set_defaults(func=server_start,
                              environment=defaults.python_environment,
                              config=defaults.config_filename)
