@@ -75,6 +75,14 @@ def update(args):
         print "Trouble acceding remote repository."
         print "Please check the url <%s> in the environment.conf and try again." % remote_branch_url 
         return False
+    except pysvn._pysvn_2_6.ClientError, m:
+        print "Trouble acceding remote repository."
+        if 'callback_ssl_server_trust_prompt' in m:
+            print "You must accept the server certificate first. Execute the following command and answer 'p' to the question."
+            print "cd sources; svn co %s %s; cd .." % (remove_branch_url, local_branch_url)
+        else:
+            print m
+        return False
 
 def create(args):
     """

@@ -72,6 +72,11 @@ class BazaarRepository(RepositoryBase):
         re.compile('^bzr+ssh:.*')
     ]
 
+def ssl_server_trust_prompt( trust_dict ):
+    # http://pysvn.tigris.org/docs/pysvn_prog_ref.html#pysvn_client_callback_ssl_server_trust_prompt
+    #return retcode, accepted_failures, save
+    return False, trust_dict['failures'], True
+
 class SVNRepository(RepositoryBase):
     def __init__(self, local_path, remote_url):
         self = RepositoryBase.__init__(self, local_path, remote_url)
@@ -79,10 +84,12 @@ class SVNRepository(RepositoryBase):
 
     def update(self):
         client = pysvn.Client()
+        client.callback_ssl_server_trust_prompt = ssl_server_trust_prompt
         client.update(self.local_path)
 
     def checkout(self):
         client = pysvn.Client()
+        client.callback_ssl_server_trust_prompt = ssl_server_trust_prompt
         client.checkout(self.remote_url, self.local_path)
 
     _url_re_ = [
