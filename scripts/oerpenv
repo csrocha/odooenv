@@ -12,6 +12,7 @@ from os import remove
 import signal
 import psycopg2
 import pprint
+import pysvn
 
 import bzrlib
 from oerpenv import *
