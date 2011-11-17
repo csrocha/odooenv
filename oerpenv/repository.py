@@ -74,8 +74,10 @@ class BazaarRepository(RepositoryBase):
 
 def ssl_server_trust_prompt( trust_dict ):
     # http://pysvn.tigris.org/docs/pysvn_prog_ref.html#pysvn_client_callback_ssl_server_trust_prompt
-    #return retcode, accepted_failures, save
-    return False, trust_dict['failures'], True
+    for v in trust_dict.items():
+       print "%s:%s" % v
+    a = raw_input("Your trust in the certificate? ")
+    return a in 'Yesyes', trust_dict['failures'], True
 
 class SVNRepository(RepositoryBase):
     def __init__(self, local_path, remote_url):
