@@ -7,7 +7,7 @@ import sys, os, signal, ConfigParser
 import virtualenv, datetime
 from virtualenv import subprocess
 import argparse
-from os.path import abspath, exists, join, basename, dirname
+from os.path import abspath, exists, join, basename, dirname, normpath, expanduser, expandvars
 from os import remove
 import signal
 import psycopg2
@@ -30,7 +30,7 @@ def init(args):
     if path is not None:
         config_filename = join(abspath(path), config_filename)
 
-    repository = abspath(repository) if repository is not None else None
+    repository = normpath(abspath(expanduser(expandvars(repository)))) if repository is not None else None
 
     try:
         oerpenv = OpenERPEnvironment(config_filename=config_filename, sources=repository, init=True, version=version)
@@ -328,24 +328,40 @@ def server_start(args):
     oerpenv = OpenERPEnvironment(config_filename=args.config)
     oerpenv.set_python_environment(args.environment)
 
+    snapshot = args.snapshot if args.snapshot is not None else oerpenv.snapshot
+    database =  args.database if args.database is not None else oerpenv.database
+    debug =  args.debug or oerpenv.debug
+    update =  args.update if args.update is not None else oerpenv.modules_update
+    install =  args.install if args.install is not None else oerpenv.modules_install
+    production =  args.production if args.production is not None else oerpenv.production
+
     options = []
 
-    if not args.database is None:
-        options += [ '-d', args.database ]
+    if not database is None:
+        options += [ '-d', database ]
 
-    if args.debug:
+    if oerpenv.server_config_filename:
+        options += [ '--config', oerpenv.server_config_filename ]
+
+    if debug:
         options += [ '--debug' ]
 
-    if args.production:
+    if production:
         options += [ '--without-demo=all','--test-disable' ]
 
-    if not args.snapshot is None:
-        if args.database is None:
-            print "ERROR: Cant recover snapshot %s, because not defined database" % args.snapshot
+    if not update is None and len(update) > 0:
+        options += sum([ ['-u', module ] for module in update ], [])
+
+    if not install is None and len(install) > 0:
+        options += sum([ ['-i', module ] for module in install ], [])
+
+    if snapshot:
+        if database is None:
+            print "ERROR: Cant recover snapshot %s, because not defined database" % snapshot
             return False
-        print "Recovering snapshot '%s' of the database '%s'." % (args.snapshot, args.database)
-        if not tools.recover_snapshot(args.database, args.snapshot, oerpenv):
-            print "ERROR: Cant recover snapshot %s." % args.snapshot
+        print "Recovering snapshot '%s' of the database '%s'." % (snapshot, database)
+        if not tools.recover_snapshot(database, snapshot, oerpenv):
+            print "ERROR: Cant recover snapshot %s." % snapshot
             return False
     try:
         pidfilename = join(oerpenv.root_path, '.server_pid')
@@ -353,12 +369,11 @@ def server_start(args):
             print "A server is running or .server_pid has not been deleted at the end of the server."
             print "Execute 'oerpenv stop' to stop the server and remove this file."
             return False
-        pid = oerpenv.execute('openerp-server', options, no_wait=not args.debug)
-        if not args.debug:
+        pid = oerpenv.execute('openerp-server', options, no_wait=not debug)
+        if not debug:
             f = open(pidfilename, 'w')
             f.write("%i" % pid)
             f.close()
-            
     except KeyboardInterrupt:
         print "KeyboardInterrupt event."
     except OSError, m:
@@ -522,7 +537,7 @@ def restore_db(args):
         infile = "%s.dump" % dbname
     else:
         infile = args.infile
-    P = subprocess.Popen(['pg_restore', '-Fc', '-d', dbname, infile])
+    P = subprocess.Popen(['pg_restore', '--disable-triggers', '-Fc', '-d', dbname, infile])
     P.wait()
 
 def snapshot_db(args):
@@ -704,6 +719,10 @@ def main():
                              help='Start server in debug mode. Stop until an exception.')
     parser_server_start.add_argument('--production', '-p', action='store_true',
                              help='Start server in production mode. No test and demos.')
+    parser_server_start.add_argument('--update', '-u', metavar='MODULES', type=str, nargs='*',
+                             help='Update modules')
+    parser_server_start.add_argument('--install', '-i', metavar='MODULES', type=str, nargs='*',
+                             help='Install modules')
     parser_server_start.set_defaults(func=server_start,
                              environment=defaults.python_environment,
                              config=defaults.config_filename)

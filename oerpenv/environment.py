@@ -22,7 +22,7 @@
 
 import re
 import virtualenv
-from os import makedirs, walk
+from os import makedirs, walk, symlink
 from os.path import abspath, join, exists, dirname, basename
 from installable import Installable
 from oerpenv import tools, defaults
@@ -64,12 +64,16 @@ class OpenERPEnvironment:
             self._config.update(defaults.version_configuration[version])
             self._config['Environment.root'] = self.root_path
             if not sources is None:
+                default_sources = self._config['Environment.sources'] % { 'root' : self.root_path }
+                symlink(sources, default_sources)
                 self._config['Environment.sources'] = sources
             self.environments = []
             self.create_python_environment(defaults.python_environment)
             self.save(init=True)
             for d in defaults.directory_structure:
-                if not exists(d): makedirs(join(self.root_path, d))
+                nd = join(self.root_path, d)
+                if not exists(nd):
+                    makedirs(nd)
         else:
             raise NoEnvironmentConfigFileError(config_filename)
 
@@ -217,6 +221,41 @@ class OpenERPEnvironment:
     @property
     def client_config_filename(self):
         return join(self.env_path, 'etc', self._config['Environment.client-config-filename'])
+
+    @property
+    def server_config_filename(self):
+        if 'Environment.server-config-filename' in self._config:
+            return join(self.env_path, 'etc', self._config['Environment.server-config-filename'])
+        else:
+            False
+
+    @property
+    def production(self):
+        return self._config.get('Environment.snapshot', False)
+
+    @property
+    def snapshot(self):
+        return self._config.get('Database.snapshot', False)
+
+    @property
+    def database(self):
+        return self._config.get('Database.database', False)
+
+    @property
+    def debug(self):
+        return self._config.get('Environment.debug', False)
+
+    @property
+    def modules_update(self):
+        r = self._config.get('Modules.update', '')
+        r = [ s for s in r.split(',') if not s == '' ]
+        return r
+
+    @property
+    def modules_install(self):
+        r = self._config.get('Modules.install', '')
+        r = [ s for s in r.split(',') if not s == '' ]
+        return r
 
     def set_python_environment(self, name):
         """
