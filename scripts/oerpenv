@@ -344,6 +344,7 @@ def server_start(args):
     install =  args.install if args.install is not None else oerpenv.modules_install
     production =  args.production or oerpenv.production
     language =  args.language if args.language is not None else oerpenv.language
+    extracommands =  args.extracommands if args.extracommands is not None else oerpenv.extracommands
 
     options = []
 
@@ -355,6 +356,7 @@ def server_start(args):
 
     if debug:
         options += [ '--debug' ]
+        options += [ '--log-level=debug_rpc', '--logfile=%s/openerp-server.log' % oerpenv.root_path ]
 
     if production:
         options += [ '--without-demo=all','--test-disable' ]
@@ -367,6 +369,9 @@ def server_start(args):
 
     if not install is None and len(install) > 0:
         options += sum([ ['-i', module ] for module in install ], [])
+
+    if extracommands is not None:
+        options += [ extracommands ]
 
     if snapshot:
         if database is None:
@@ -384,10 +389,14 @@ def server_start(args):
             return False
         print "Running with options: %s" % ' '.join(options)
         pid = oerpenv.execute('openerp-server', options, no_wait=not debug)
-        if not debug:
+        if not debug and pid is not None:
             f = open(pidfilename, 'w')
             f.write("%i" % pid)
             f.close()
+        if pid is not None:
+            os.kill(pid, signal.SIGINT)
+        else:
+            print "Process terminated unexpectedly"
     except KeyboardInterrupt:
         print "KeyboardInterrupt event."
     except OSError, m:
@@ -721,7 +730,7 @@ def main():
 
     # The start subcommand
     parser_server_start = subparsers.add_parser('server-start', help=server_start.__doc__)
-    parser_server_start.add_argument('database', metavar='database', type=str, nargs='?',
+    parser_server_start.add_argument('--database', '-D',  metavar='database', type=str, nargs='?',
                              help='Database name.')
     parser_server_start.add_argument('--environment', '-e', metavar='environment', type=str, nargs='?',
                              help='Python environment name.')
@@ -739,6 +748,7 @@ def main():
                              help='Install modules')
     parser_server_start.add_argument('--language', '-l', metavar='LANG', type=str, nargs='?',
                              help='Default Language')
+    parser_server_start.add_argument('extracommands', nargs='?', help='Commands direct to openerp-server')
     parser_server_start.set_defaults(func=server_start,
                              environment=defaults.python_environment,
                              config=defaults.config_filename)

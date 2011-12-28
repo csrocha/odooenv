@@ -230,6 +230,10 @@ class OpenERPEnvironment:
             False
 
     @property
+    def extracommands(self):
+        return self._config.get('Environment.server-extracommands', None)
+
+    @property
     def production(self):
         return self._config.get('Environment.production', False)
 
