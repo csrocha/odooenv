@@ -100,7 +100,6 @@ class SVNRepository(RepositoryBase):
         re.compile('^svn+ssh:.*'),
     ]
 
-
 def Repository(local_path, branch_url):
     classes = [ BazaarRepository, SVNRepository ]
     for c in classes:

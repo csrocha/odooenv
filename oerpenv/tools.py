@@ -25,6 +25,10 @@ import sys, os, ConfigParser
 import subprocess
 import psycopg2
 
+# Use 1 to postgresql v8.x
+# Use 3 to postgresql v9.x
+default_isolation_level=3
+
 def create_database(dbname):
         """
         Create a postgresql database.
@@ -37,7 +41,7 @@ def create_database(dbname):
         except psycopg2.ProgrammingError:
                 cur.execute("DROP DATABASE %s;" % dbname)
                 cur.execute("CREATE DATABASE %s;" % dbname)
-        conn.set_isolation_level(3)
+        conn.set_isolation_level(default_isolation_level)
 
 def drop_database(dbname):
         """
@@ -49,7 +53,7 @@ def drop_database(dbname):
         conn.set_isolation_level(0)
         cur = conn.cursor()
         cur.execute("DROP DATABASE %s;" % dbname)
-        conn.set_isolation_level(3)
+        conn.set_isolation_level(default_isolation_level)
 
 def save_configuration(options, filename):
         """
