@@ -457,7 +457,8 @@ def web_start(args):
             f.write("%i" % pid)
             f.close()
         if pid is not None:
-            os.kill(pid, signal.SIGINT)
+            pass
+            #os.kill(pid, signal.SIGINT)
         else:
             print "Process terminated unexpectedly"
     except KeyboardInterrupt:
