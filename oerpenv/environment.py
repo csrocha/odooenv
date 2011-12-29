@@ -22,6 +22,7 @@
 
 import re
 import virtualenv
+import sys
 from os import makedirs, walk, symlink
 from os.path import abspath, join, exists, dirname, basename
 from installable import Installable
@@ -123,7 +124,8 @@ class OpenERPEnvironment:
         """
         path = join(self.root, name)
         if exists(path): return False
-        virtualenv.create_environment(path)
+	virtualenv.logger = virtualenv.Logger([(virtualenv.Logger.level_for_integer(2), sys.stdout)])
+        virtualenv.create_environment(path,site_packages=False, use_distribute=True)
         if name not in self.environments:
                 self.environments.append(name)
 
