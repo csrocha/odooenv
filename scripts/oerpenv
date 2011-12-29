@@ -12,6 +12,7 @@ import psycopg2
 import pprint
 import pysvn
 import datetime
+import subprocess
 
 import bzrlib
 from oerpenv import *
@@ -393,7 +394,8 @@ def server_start(args):
             f.write("%i" % pid)
             f.close()
         if pid is not None:
-            os.kill(pid, signal.SIGINT)
+            #os.kill(pid, signal.SIGINT)
+            pass
         else:
             print "Process terminated unexpectedly"
     except KeyboardInterrupt:
@@ -557,7 +559,6 @@ def shell_db(args):
     """
     Execute a shell for sql commands over the database.
     """
-    import subprocess
     P = subprocess.Popen(['psql', args.database])
     P.wait()
     pass
