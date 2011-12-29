@@ -428,6 +428,69 @@ def server_stop(args):
     os.remove(pidfilename)
     return True
 
+def web_start(args):
+    """
+    Start the web client.
+    """
+    oerpenv = OpenERPEnvironment(config_filename=args.config)
+    oerpenv.set_python_environment(args.environment)
+
+    debug =  args.debug or oerpenv.debug
+    extracommands =  args.extracommands if args.extracommands is not None else oerpenv.extracommands
+
+    options = []
+
+    if extracommands is not None:
+        options += [ extracommands ]
+
+    try:
+        pidfilename = join(oerpenv.root_path, '.web_pid')
+        if exists(pidfilename):
+            print "A web client is running or .web_pid has not been deleted at the end of the web client."
+            print "Execute 'oerpenv web-stop' to stop the web client and remove this file."
+            return False
+        print "Running with options: %s" % ' '.join(options)
+        pid = oerpenv.execute('openerp-web', options, no_wait=not debug)
+        if not debug and pid is not None:
+            f = open(pidfilename, 'w')
+            f.write("%i" % pid)
+            f.close()
+        if pid is not None:
+            os.kill(pid, signal.SIGINT)
+        else:
+            print "Process terminated unexpectedly"
+    except KeyboardInterrupt:
+        print "KeyboardInterrupt event."
+    except OSError, m:
+        print "Environment Error."
+        print "ERROR: %s" % m
+        print "If you move the environment please rebuild default python environment and check directories in environment.conf file."
+        print "If all ok, be sure you executed 'oerpenv install' before run this command."
+
+def web_stop(args):
+    """
+    Stop the web client.
+    """
+    oerpenv = OpenERPEnvironment(config_filename=args.config)
+    oerpenv.set_python_environment(args.environment)
+
+    pidfilename = join(oerpenv.root_path, '.web_pid')
+    try:
+        with open(pidfilename, 'r') as f:
+            pid = int(f.readline())
+        os.kill(pid, signal.SIGINT)
+    except IOError, m:
+        print "No web client information."
+        print "ERROR: %s" % m
+        return False
+    except OSError, m:
+        print "No web client running."
+        print "ERROR: %s" % m
+        return False
+    os.remove(pidfilename)
+    return True
+
+
 def search_object(args):
     """
     Search addons with this object.
@@ -728,7 +791,7 @@ def main():
                              environment=defaults.python_environment,
                              config=defaults.config_filename)
 
-    # The start subcommand
+    # The server-start subcommand
     parser_server_start = subparsers.add_parser('server-start', help=server_start.__doc__)
     parser_server_start.add_argument('--database', '-D',  metavar='database', type=str, nargs='?',
                              help='Database name.')
@@ -758,6 +821,21 @@ def main():
     parser_server_stop.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
                              help='Environment configuration file.')
     parser_server_stop.set_defaults(func=server_stop,
+                             environment=defaults.python_environment,
+                             config=defaults.config_filename)
+
+    # The web-start subcommand
+    parser_web_start = subparsers.add_parser('web-start', help=web_start.__doc__)
+    parser_web_start.add_argument('--debug', '-d', action='store_true',
+                             help='Start web client in debug mode. Stop until an exception.')
+    parser_web_start.add_argument('extracommands', nargs='?', help='Commands direct to openerp-web')
+    parser_web_start.set_defaults(func=web_start,
+                             environment=defaults.python_environment,
+                             config=defaults.config_filename)
+
+    # The stop subcommand
+    parser_server_stop = subparsers.add_parser('web-stop', help=web_stop.__doc__)
+    parser_server_stop.set_defaults(func=web_stop,
                              environment=defaults.python_environment,
                              config=defaults.config_filename)
 
