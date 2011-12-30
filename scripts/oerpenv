@@ -815,7 +815,8 @@ def main():
     parser_server_start.add_argument('extracommands', nargs='?', help='Commands direct to openerp-server')
     parser_server_start.set_defaults(func=server_start,
                              environment=defaults.python_environment,
-                             config=defaults.config_filename)
+                             config=defaults.config_filename,
+                             extracommands=None)
 
     # The stop subcommand
     parser_server_stop = subparsers.add_parser('server-stop', help=server_stop.__doc__)
@@ -832,7 +833,8 @@ def main():
     parser_web_start.add_argument('extracommands', nargs='?', help='Commands direct to openerp-web')
     parser_web_start.set_defaults(func=web_start,
                              environment=defaults.python_environment,
-                             config=defaults.config_filename)
+                             config=defaults.config_filename,
+                             extracommands=None)
 
     # The stop subcommand
     parser_server_stop = subparsers.add_parser('web-stop', help=web_stop.__doc__)
