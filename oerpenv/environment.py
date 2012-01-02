@@ -249,7 +249,7 @@ class OpenERPEnvironment:
 
     @property
     def database(self):
-        return self._config.get('Database.database', False)
+        return self._config.get('Database.database', None)
 
     @property
     def debug(self):
