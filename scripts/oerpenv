@@ -348,7 +348,7 @@ def server_start(args):
 
     options = []
 
-    if not database is None:
+    if database and database is not None:
         options += [ '-d', database ]
 
     if oerpenv.server_config_filename:
@@ -356,7 +356,7 @@ def server_start(args):
 
     if debug:
         options += [ '--debug' ]
-        options += [ '--log-level=debug_rpc', '--logfile=%s/openerp-server.log' % oerpenv.root_path ]
+        #options += [ '--log-level=debug_rpc', '--logfile=%s/openerp-server.log' % oerpenv.root_path ]
 
     if production:
         options += [ '--without-demo=all','--test-disable' ]
@@ -614,25 +614,11 @@ def dump_db(args):
     P = subprocess.Popen(['pg_dump', '-Fc', '--compress', '9', '-f', outfile, dbname])
     P.wait()
     pass
-
-def restore_db(args):
+def snapshot(args):
     """
-    Restore a backup file.
-    """
-    dbname = args.database[0]
-    if args.infile is None:
-        infile = "%s.dump" % dbname
-    else:
-        infile = args.infile
-    P = subprocess.Popen(['pg_restore', '--disable-triggers', '-Fc', '-d', dbname, infile])
-    P.wait()
-
-def snapshot_db(args):
-    """
-    Generate an snapshot for a database.
+    Generate a database snapshot.
     """
     oerpenv = OpenERPEnvironment(config_filename=args.config)
-
     snapshots = oerpenv.snapshots_path
 
     dbname = args.database[0]
@@ -644,6 +630,23 @@ def snapshot_db(args):
     if r:
         print "ERROR: Cant dump the snapshot."
  
+def restore(args):
+    """
+    Restore a database snapshot.
+    """
+    oerpenv = OpenERPEnvironment(config_filename=args.config)
+    snapshots = oerpenv.snapshots_path
+
+    dbname = args.database[0]
+    snapshot_name = args.name
+    infile = join(snapshots, "%s_%s.dump" % (dbname, snapshot_name))
+
+    P = subprocess.Popen(['pg_restore', '-c', '--disable-triggers', '-Fc', '-d', dbname, infile])
+    r = P.wait()
+
+    if r:
+        print "ERROR: Cant recover the snapshot."
+
 def main():
     parser = argparse.ArgumentParser()
 
@@ -919,40 +922,28 @@ def main():
                              environment=defaults.python_environment,
                              config=defaults.config_filename)
 
-    # The dump-db command
-    parser_dump_db = subparsers.add_parser('dump-db', help=dump_db.__doc__)
-    parser_dump_db.add_argument('database', metavar='database', type=str, nargs=1,
+    # The snapshot command
+    parser_snapshot = subparsers.add_parser('snapshot', help=snapshot.__doc__)
+    parser_snapshot.add_argument('database', metavar='database', type=str, nargs=1,
                              help='Database name.')
-    parser_dump_db.add_argument('--outfile', '-f', metavar='outfile', type=str, nargs='?',
-                             help='Target file for the backup.')
-    parser_dump_db.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
-                             help='Environment configuration file.')
-    parser_dump_db.set_defaults(func=dump_db,
-                             config=defaults.config_filename)
-
-    # The restore-db command
-    parser_restore_db = subparsers.add_parser('restore-db', help=restore_db.__doc__)
-    parser_restore_db.add_argument('database', metavar='database', type=str, nargs=1,
-                             help='Database name.')
-    parser_restore_db.add_argument('--infile', '-f', metavar='infile', type=str, nargs='?',
-                             help='Backup file.')
-    parser_restore_db.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
-                             help='Environment configuration file.')
-    parser_restore_db.set_defaults(func=restore_db,
-                             config=defaults.config_filename)
-
-    # The snapshot-db command
-    parser_snapshot_db = subparsers.add_parser('snapshot-db', help=snapshot_db.__doc__)
-    parser_snapshot_db.add_argument('database', metavar='database', type=str, nargs=1,
-                             help='Database name.')
-    parser_snapshot_db.add_argument('name', metavar='name', type=str, nargs='?',
+    parser_snapshot.add_argument('name', metavar='name', type=str, nargs='?',
                              help='Snapshot name.')
-    parser_snapshot_db.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
+    parser_snapshot.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
                              help='Environment configuration file.')
-    parser_snapshot_db.set_defaults(func=snapshot_db,
+    parser_snapshot.set_defaults(func=snapshot,
                              name=datetime.datetime.today().strftime("%Y%m%d%H%M%S"),
                              config=defaults.config_filename)
 
+    # The restore command
+    parser_restore = subparsers.add_parser('restore', help=restore.__doc__)
+    parser_restore.add_argument('database', metavar='database', type=str, nargs=1,
+                             help='Database name.')
+    parser_restore.add_argument('name', metavar='name', type=str, nargs='?',
+                             help='Snapshot name.')
+    parser_restore.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
+                             help='Environment configuration file.')
+    parser_restore.set_defaults(func=restore,
+                             config=defaults.config_filename)
     # Parse and execute
     args = parser.parse_args()
 
