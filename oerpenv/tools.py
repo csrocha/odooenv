@@ -99,7 +99,7 @@ def recover_snapshot(dbname, snapshot, oerpenv):
     try:
         create_database(dbname);
         infile = join(oerpenv.snapshots_path, "%s_%s.dump" % (dbname, snapshot))
-        P = subprocess.Popen(['pg_restore', '-Fc', '-d', dbname, infile])
+        P = subprocess.Popen(['pg_restore', '-O', '-Fc', '-d', dbname, infile])
         r = P.wait()
         if r:
             return False
