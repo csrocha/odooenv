@@ -641,7 +641,7 @@ def restore(args):
     snapshot_name = args.name
     infile = join(snapshots, "%s_%s.dump" % (dbname, snapshot_name))
 
-    P = subprocess.Popen(['pg_restore', '-c', '-O', '--disable-triggers', '-Fc', '-d', dbname, infile])
+    P = subprocess.Popen(['pg_restore', '-x', '-c', '-O', '--disable-triggers', '-Fc', '-d', dbname, infile])
     r = P.wait()
 
     if r:
