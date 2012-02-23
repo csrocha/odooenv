@@ -119,7 +119,7 @@ def install(args):
             print "Successfull installed"
         else:
             print "ERROR: Can't confirm the application is installed."
-            print "Please, execute 'operenv test base' to check if server is working"
+            print "Please, execute 'oerpenv test base' to check if server is working"
             print "To check if client is working execute 'openerp client'"
             print "If not working, recreate the python environment and try again"
             print
