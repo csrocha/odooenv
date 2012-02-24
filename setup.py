@@ -31,8 +31,8 @@ setup(name='oerpenv',
       scripts=['scripts/oerpenv'],
       packages=['oerpenv'],
       test_suite='tests',
-      install_requires=['virtualenv','psycopg2','argparse'],
-      #install_requires=['virtualenv','bzrlib','pysvn','psycopg2'],
+      install_requires=['virtualenv','psycopg2','argparse','bzr'],
+      dependency_links=['http://pysvn.barrys-emacs.org/source_kits/pysvn-1.7.5.tar.gz']
    )
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
