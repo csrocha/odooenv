@@ -240,7 +240,7 @@ class OpenERPEnvironment:
             False
 
     @property
-    def server_config_filename(self):
+    def web_config_filename(self):
         if 'Environment.web-config-filename' in self._config:
             return join(self.env_path, 'etc', self._config['Environment.web-config-filename'])
         else:
