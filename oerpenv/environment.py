@@ -30,6 +30,7 @@ from oerpenv import tools, defaults
 from virtualenv import subprocess
 from addon import Addon
 from repository import Repository
+from pwd import getpwnam
 
 class NoEnvironmentConfigFileError(RuntimeError):
     def __init__(self, filepath):
@@ -82,6 +83,13 @@ class OpenERPEnvironment:
         self.defaults = {}
         self.config_filename = join(self.root_path, self.config_filename)
         self.set_python_environment(self.environments[0])
+
+    def changetouser(self):
+        """
+        Change effective user to run this process
+        """
+        username = self._config['Environment.user']
+        uid = getpwnam(username)[2]
 
     def load(self):
         """

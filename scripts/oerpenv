@@ -444,6 +444,9 @@ def web_start(args):
     if extracommands is not None:
         options += [ extracommands ]
 
+    if oerpenv.web_config_filename:
+        options += [ '--config', oerpenv.web_config_filename ]
+
     try:
         pidfilename = join(oerpenv.root_path, '.web_pid')
         if exists(pidfilename):
