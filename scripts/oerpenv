@@ -295,6 +295,8 @@ def test_addon(args):
     try:
         initarg = sum([['--init', v] for v in args.addon ], [])
         options = ['--stop-after-init']
+        if oerpenv.server_config_filename:
+            options += [ '--config', oerpenv.server_config_filename ]
         if oerpenv._config['Environment.version'] in '6.0':
             options += [ '--test-report-directory', oerpenv.reports_path ]
         oerpenv.execute('openerp-server', initarg + ['-d', dbname] + options)

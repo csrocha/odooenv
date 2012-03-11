@@ -34,6 +34,7 @@ def create_database(dbname):
         Create a postgresql database.
         """
         conn = psycopg2.connect("")
+        old_isolation_level = conn.isolation_level
         conn.set_isolation_level(0)
         cur = conn.cursor()
         try:
@@ -41,7 +42,7 @@ def create_database(dbname):
         except psycopg2.ProgrammingError:
                 cur.execute("DROP DATABASE %s;" % dbname)
                 cur.execute("CREATE DATABASE %s;" % dbname)
-        conn.set_isolation_level(default_isolation_level)
+        conn.set_isolation_level(old_isolation_level)
 
 def drop_database(dbname):
         """
@@ -50,10 +51,11 @@ def drop_database(dbname):
         import psycopg2
 
         conn = psycopg2.connect("")
+        old_isolation_level = conn.isolation_level
         conn.set_isolation_level(0)
         cur = conn.cursor()
         cur.execute("DROP DATABASE %s;" % dbname)
-        conn.set_isolation_level(default_isolation_level)
+        conn.set_isolation_level(old_isolation_level)
 
 def save_configuration(options, filename):
         """
