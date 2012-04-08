@@ -20,25 +20,55 @@
 #
 ##############################################################################
 
-from os.path import abspath, basename, dirname, join
+from os.path import abspath, basename, dirname, join, exists
 import imp
 import os
 import subprocess
 import StringIO
 
 class Installable:
-    def __init__(self, installable_setup_path):
+    def __init__(self, method, url, bin_path):
         """
         Init an addon class information 
         """
-        self._installable_setup_path = abspath(installable_setup_path)
-        self._path = dirname(self._installable_setup_path)
-        self.read_description()
+        self._method = method
+        version = None
+        repository_type = None
+        if exists(url):
+            repository_type = 'file'
+        if '=' in url and method in ['pip']:
+            url, version = url.split('==',1)
+        if not repository_type and '+' in url and method in ['pip']:
+            repository_type, url = url.split('+',1)
+        self._url = url
+        self._version = version
+        self._repository_type = repository_type
+        self._bin_path = bin_path
+        self._run = { 'setup': self.run_setup, 'pip': self.run_pip }[method]
+        self._name = None
+        self._fullname = None
+        self._description = None
 
-    def run_setup(self, command, bin_path=''):
-        command = [ join(bin_path, 'python'), join(self._path,'setup.py'), command ]
+    def run_setup(self, command):
+        bin_path = self._bin_path
+        url = self._url
+        command = [ join(bin_path, 'python'), join(url,'setup.py'), command ]
         P = subprocess.Popen(command,
-                            cwd = self._path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                             cwd = url, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        out = P.stdout.readlines()
+        err = P.stderr.readlines()
+        r = P.wait()
+        return out, err, r
+
+    def run_pip(self, command):
+        bin_path = self._bin_path
+        url = self._url
+        if command in ['install']:
+            url = "%s==%s" % (url, self._version) if self._version else url
+            url = "%s+%s" % (self._repository_type,url) if not self._repository_type in [None, 'file'] else url
+        command = [ join(bin_path, 'pip'), command, url ]
+        P = subprocess.Popen(command,
+                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         out = P.stdout.readlines()
         err = P.stderr.readlines()
         r = P.wait()
@@ -48,34 +78,53 @@ class Installable:
         """
         Read Installable description.
         """
-        name, err, r = self.run_setup('--name')
-        if not r == 0:
-            raise RuntimeError('No description')
-        fullname, err, r = self.run_setup('--fullname')
-        if not r == 0:
-            raise RuntimeError('No description')
-        description, err, r = self.run_setup('--description')
-        if not r == 0:
-            raise RuntimeError('No description')
-        self._name = ','.join(name)[:-1]
-        self._fullname = ','.join(fullname)[:-1]
-        self._description = ''.join(description)[:-1]
+        method = self._method
+        url = self._url
 
-    def install(self, bin_path='', methods=['pip', 'setup.py']):
-        for method in methods:
-            if method in ['setup.py', 'python']:
-                command = [ join(bin_path, 'python'), join(self._path,'setup.py'), 'install' ]
-            elif method in ['pip', 'easy_install']:
-                command = [ join(bin_path, method), 'install', self._path ]
+        name = url 
+        fullname = 'No fullname'
+        description = 'No description'
+
+        if method in ['setup', 'pip'] and self._repository_type in ['file']:
+            name, err, r = self.run_setup('--name')
+            name=','.join(name).strip() if r == 0 else url 
+
+            fullname, err, r = self.run_setup('--fullname')
+            fullname=','.join(fullname).strip() if r == 0 else 'No fullname'
+
+            description, err, r = self.run_setup('--description')
+            description=','.join(description).strip() if r == 0 else 'No description'
+
+        elif method in ['pip'] and not self._repository_type in ['hg', 'bzr', 'file']:
+            out, err, r = self.run_pip('search')
+            try:
+                outs = dict([[ j.strip() for j in i.strip().split('- ',1) ] for i in out if '- ' in i ])
+            except:
+                outs = {}
+            if url in outs:
+                name = url
+                fullname = 'No fullname'
+                description = outs[url]
             else:
-                return False
-            P = subprocess.Popen(command, cwd=self._path,
-                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            out = P.stdout.readlines()
-            err = P.stderr.readlines()
-            r = P.wait()
-            if "Successfully installed %s\n" % self._name in out:
-                return True
+                print err
+                raise RuntimeError('Installable %s not found\nWe found only this options:\n%s' % (url, ''.join(out)))
+        elif not self._repository_type in [ 'hg', 'bzr' ]:
+            raise RuntimeError('Method not supported or wrong config file.')
+
+        self._name = name
+        self._fullname = fullname
+        self._description = description
+
+    def install(self):
+        out, err, r = self._run('install')
+
+        if (("Successfully installed %s\n" % self.name in out) or
+            ("Cleaning up...\n" in out)):
+            return True
+        else:
+            print ''.join(out)
+            print '\n'.join(err)
+
         return False
 
     @property
@@ -84,14 +133,17 @@ class Installable:
 
     @property
     def name(self):
+        if self._name is None: self.read_description()
         return self._name
 
     @property
     def fullname(self):
+        if self._fullname is None: self.read_description()
         return self._fullname
 
     @property
     def description(self):
+        if self._description is None: self.read_description()
         return ''.join(self._description)
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

@@ -158,12 +158,17 @@ class OpenERPEnvironment:
 
     @property
     def installables(self):
-        for path, ds, fs in walk(self._config['Environment.sources'], followlinks=True):
-            if 'setup.py' in fs:
-                try:
-                    yield Installable(join(path, 'setup.py'))
-                except RuntimeError:
-                    pass
+        installables_str = self._config.get('Environment.installables', False)
+        if installables_str:
+            for i in installables_str.split(','):
+                method, url = i.strip().split(':',1)
+                yield Installable(method, url, join(self.env_path,'bin'))
+        else:
+            raise StopIteration
+
+    @property
+    def modules(self):
+        return [ Installable(m, is_application=False) for m in self._config['Environment.modules'].split(',') ]
 
     def addons(self, token_filter=None, object_filter=None, inherited_filter=None, entity_filter=None):
         if not token_filter is None:

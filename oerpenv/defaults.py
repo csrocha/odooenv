@@ -52,13 +52,44 @@ version_configuration = {
         '6.0': {
             'Environment.version': '6.0',
             'Environment.desc-filename': '__openerp__.py',
+            'Environment.installables': """
+                    pip:bzr+http://download.gna.org/pychart/bzr-archive,
+                    pip:lxml,
+                    pip:psycopg2,
+                    pip:Babel,
+                    pip:PyYAML,
+                    pip:reportlab,
+                    pip:python-dateutil==1.5,
+                    pip:hg+https://bitbucket.org/johnmc/zkemapi,
+                    pip:%(sources)s/server,
+                    pip:%(sources)s/web
+            """,
             'Repositories.server': 'lp:~openerp/openobject-server/6.0',
             'Repositories.client': 'lp:~openerp/openobject-client/6.0',
             'Repositories.addons': 'lp:~openerp/openobject-addons/6.0',
             'Repositories.addons-extra': 'lp:~openerp-commiter/openobject-addons/extra-6.0',
             'Repositories.addons-community': 'lp:~openerp-community/openobject-addons/trunk-addons-community',
-            'Repositories.web': 'lp:~openerp/openobject-client-web/6.0',
-        }
+            'Repositories.web': 'lp:openobject-client-web',
+        },
+        '6.1': {
+            'Environment.version': '6.1',
+            'Environment.desc-filename': '__openerp__.py',
+            'Environment.installables': """
+                    pip:bzr+http://download.gna.org/pychart/bzr-archive,
+                    pip:lxml,
+                    pip:psycopg2,
+                    pip:Babel,
+                    pip:PyYAML,
+                    pip:reportlab,
+                    pip:python-dateutil==1.5,
+                    pip:hg+https://bitbucket.org/johnmc/zkemapi,
+                    pip:%(sources)s/server,
+                    pip:%(sources)s/openerp-web
+            """,
+            'Repositories.server': 'lp:openobject-server/6.1',
+            'Repositories.addons': 'lp:openobject-addons/6.1',
+            'Repositories.openerp-web': 'lp:openerp-web/6.1',
+        },
 }
 
 openerp_header = """# -*- coding: utf-8 -*-

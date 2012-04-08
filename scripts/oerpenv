@@ -113,12 +113,23 @@ def install(args):
     oerpenv = OpenERPEnvironment(config_filename=args.config)
     oerpenv.set_python_environment(args.environment)
 
-    for app in oerpenv.installables:
+    print "Checking for availables applications."
+    installables = [ app for app in oerpenv.installables if app.name in args.itemstoinstall ] \
+                    if len(args.itemstoinstall) > 0 \
+                    else oerpenv.installables
+    installables = list(installables)
+
+    if len(installables) == 0:
+        print "I cant find %s in installables." % ','.join([i.name for i in installables])
+        print "Execute 'oerpenv list-installables' to view available applications to install."
+        print "Or please check if you define it in the list 'installables' of section 'Environment' in the 'environment.conf' file."
+
+    for app in installables:
         print "Installing %s" % app.name
-        if app.install(oerpenv.binary_path):
+        if app.install():
             print "Successfull installed"
         else:
-            print "ERROR: Can't confirm the application is installed."
+            print "ERROR: Can't confirm the application or module is installed."
             print "Please, execute 'oerpenv test base' to check if server is working"
             print "To check if client is working execute 'openerp client'"
             print "If not working, recreate the python environment and try again"
@@ -652,6 +663,26 @@ def restore(args):
     if r:
         print "ERROR: Cant recover the snapshot."
 
+def pip(args):
+    """
+    Install Python packages in the virtual environment.
+    """
+    oerpenv = OpenERPEnvironment(config_filename=args.config)
+    oerpenv.set_python_environment(args.environment)
+
+    command =  args.command[0] if args.command[0] in [
+        'help', 'install', 'bundle', 'freeze', 'install',
+        'search', 'uninstall', 'unzip', 'zip' ] else 'help'
+    parameters =  args.parameters
+
+    options = [ command ]
+
+    if parameters is not None:
+        options += [ parameters ]
+
+
+    pid = oerpenv.execute('pip', options, no_wait=0)
+
 def main():
     parser = argparse.ArgumentParser()
 
@@ -709,9 +740,12 @@ def main():
                              help='Python environment name.')
     parser_install.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
                              help='Environment configuration file.')
+    parser_install.add_argument('itemstoinstall', metavar='item_to_install', type=str, nargs='*',
+                             help='Item to install.')
     parser_install.set_defaults(func=install,
                              environment=defaults.python_environment,
-                             config=defaults.config_filename)
+                             config=defaults.config_filename,
+                             )
 
     # The list_installables command
     parser_list_installables = subparsers.add_parser('list-installables', help=list_installables.__doc__)
@@ -949,6 +983,21 @@ def main():
                              help='Environment configuration file.')
     parser_restore.set_defaults(func=restore,
                              config=defaults.config_filename)
+
+    # The pip command
+    parser_pip = subparsers.add_parser('pip', help=pip.__doc__)
+    parser_pip.add_argument('--environment', '-e', metavar='environment', type=str, nargs='?',
+                             help='Python environment name.')
+    parser_pip.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
+                             help='Environment configuration file.')
+    parser_pip.add_argument('command', metavar='database', type=str, nargs=1,
+                             help='Pip command [help, install, bundle, freeze, install, search, uninstall, unzip, zip]')
+    parser_pip.add_argument('parameters', nargs='?', help='Commands direct to openerp-server')
+    parser_pip.set_defaults(func=pip,
+                             environment=defaults.python_environment,
+                             config=defaults.config_filename,
+                             parameters=None)
+
     # Parse and execute
     args = parser.parse_args()
 
