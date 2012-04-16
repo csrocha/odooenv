@@ -56,6 +56,16 @@ def init(args):
         print "The url <%s> in the environment.conf is invalid. Modify it and try again." % remote_branch_url 
         return False
 
+def setup(args):
+    """
+    Write default files to environment. 
+    """
+    oerpenv = OpenERPEnvironment(config_filename=args.config)
+
+    for filename in defaults.default_files:
+        with open(filename % { 'root': oerpenv.env_path }, 'w') as file:
+            file.write(defaults.default_files[filename] % { 'root': oerpenv.root_path })
+
 def update(args):
     """
     Update sources. 
@@ -701,6 +711,15 @@ def main():
     parser_init.add_argument('--version', '-v', metavar='version', type=str, nargs='?',
                              help='OpenERP version to setup')
     parser_init.set_defaults(func=init,
+                             config=defaults.config_filename,
+                             version=defaults.version)
+
+    # The setup command
+    parser_setup = subparsers.add_parser('setup', help=init.__doc__)
+
+    parser_setup.add_argument('--repository', '-r', metavar='repository', type=str, nargs='?',
+                             help='Local repository of sources.')
+    parser_setup.set_defaults(func=setup,
                              config=defaults.config_filename,
                              version=defaults.version)
 

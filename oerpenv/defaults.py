@@ -26,7 +26,7 @@ import getpass
 config_filename = 'environment.conf'
 version = '6.0'
 python_environment = 'default'
-directory_structure = ['sources', 'reports', 'snapshots']
+directory_structure = ['sources', 'reports', 'snapshots', 'etc']
 
 user = getpass.getuser()
 
@@ -146,8 +146,6 @@ options_client_configuration = lambda path: {
     'client.form_tab_orientation': 0,
     'client.lang': False,
     'client.filetype': {},
-    'help.index': 'http://doc.openerp.com/',
-    'help.context': 'http://doc.openerp.com/v6.0/index.php?model=%(model)s&lang=%(lang)s',
     'client.timeout': 3600,
     'client.form_text_spellcheck': True,
 }
@@ -173,7 +171,91 @@ init_body = """
 #
 # Insert all includes necesary for this module
 #
-
 """
+
+default_files = {
+    '%(root)s/etc/openerp-client.conf': """
+[printer]
+preview = True
+softpath_html = None
+softpath = None
+path = None
+
+[logging]
+output = stdout
+level = error
+
+[tip]
+position = 0
+autostart = False
+
+[path]
+pixmaps = $(root)s/share/pixmaps/openerp-client
+share = $(root)s/share/openerp-client
+
+[client]
+form_tab_orientation = 0
+form_tab = top
+lang = es_AR
+theme = None
+timeout = 3600
+toolbar = both
+filetype = {}
+#default_path = /home/crocha/Proyectos/openerp/6.0/openerp-argentina/l10n_ar_invoice/i18n
+form_text_spellcheck = True
+
+[form]
+autosave = False
+toolbar = True
+submenu = True
+
+[login]
+protocol = socket://
+login = admin
+port = 8070
+server = localhost
+db = polpor_erp_v6
+
+[support]
+support_id = 
+recipient = support@openerp.com
+""",
+    '%(root)s/etc/openerp-server.conf': """
+[options]
+without_demo = True
+; This is the password that allows database operations:
+; admin_passwd = admin
+upgrade = True
+verbose = True
+netrpc = True
+; netrpc_interface = 
+; netrpc_port = 
+xmlrpc = True
+; xmlrpc_interface = 
+xmlrpc_port = 8069
+db_host = False
+db_port = False
+; Please uncomment the following line *after* you have created the
+; database. It activates the auto module check on startup.
+db_name = ctmil
+;db_user = openerp
+;db_password = False
+; Uncomment these for xml-rpc over SSL
+; secure = True
+; secure_cert_file = /etc/openerp/server.cert
+; secure_pkey_file = /etc/openerp/server.key
+root_path = None
+soap = False
+; translate_modules = ['all']
+demo = {}
+addons_path = None
+reportgz = False
+
+; Static http parameters
+static_http_enable = False
+static_http_document_root = /var/www/html
+static_http_url_prefix = /
+"""
+}
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
