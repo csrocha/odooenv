@@ -315,7 +315,10 @@ class OpenERPEnvironment:
                              'import platform; print platform.python_version()[:3],'],
                             stdout=subprocess.PIPE, stdin=subprocess.PIPE)
         python_ver = ''.join(p.stdout.readlines())[:-1]
-        addons_path = join(self.env_path, 'lib', 'python%s' % python_ver, 'site-packages', 'openerp-server', 'addons')
-        return addons_path
+        addons_path = [ 
+            join(self.env_path, 'lib', 'python%s' % python_ver, 'site-packages', 'openerp-server', 'addons'),
+            join(self.env_path, 'lib', 'python%s' % python_ver, 'site-packages', 'openerp', 'addons') ]
+        addons_path = [ p for p in addons_path if exists(p) ]
+        return max(['--'] + addons_path)
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
