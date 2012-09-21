@@ -124,8 +124,9 @@ def install(args):
     oerpenv.set_python_environment(args.environment)
 
     print "Checking for availables applications."
-    installables = [ app for app in oerpenv.installables if app.name in args.itemstoinstall ] \
-                    if len(args.itemstoinstall) > 0 \
+    itemstoinstall = [ i.lower() for i in args.itemstoinstall ]
+    installables = [ app for app in oerpenv.installables if app.name.lower() in itemstoinstall ] \
+                    if len(itemstoinstall) > 0 \
                     else oerpenv.installables
     installables = list(installables)
 
@@ -394,7 +395,7 @@ def server_start(args):
         options += sum([ ['-i', module ] for module in install ], [])
 
     if extracommands is not None:
-        options += [ extracommands ]
+        options += extracommands
 
     if snapshot:
         if database is None:
@@ -465,7 +466,7 @@ def web_start(args):
     options = []
 
     if extracommands is not None:
-        options += [ extracommands ]
+        options += extracommands
 
     if oerpenv.web_config_filename:
         options += [ '--config', oerpenv.web_config_filename ]
@@ -477,7 +478,7 @@ def web_start(args):
             print "Execute 'oerpenv web-stop' to stop the web client and remove this file."
             return False
         print "Running with options: %s" % ' '.join(options)
-        pid = oerpenv.execute('openerp-web', options, no_wait=not debug)
+        pid = oerpenv.execute('openerp-web', options, no_wait=not debug, check_for_termination=True)
         if not debug and pid is not None:
             f = open(pidfilename, 'w')
             f.write("%i" % pid)
@@ -873,7 +874,7 @@ def main():
                              help='Install modules')
     parser_server_start.add_argument('--language', '-l', metavar='LANG', type=str, nargs='?',
                              help='Default Language')
-    parser_server_start.add_argument('extracommands', nargs='?', help='Commands direct to openerp-server')
+    parser_server_start.add_argument('extracommands', nargs='*', help='Commands direct to openerp-server')
     parser_server_start.set_defaults(func=server_start,
                              environment=defaults.python_environment,
                              config=defaults.config_filename,
@@ -891,7 +892,7 @@ def main():
     parser_web_start = subparsers.add_parser('web-start', help=web_start.__doc__)
     parser_web_start.add_argument('--debug', '-d', action='store_true',
                              help='Start web client in debug mode. Stop until an exception.')
-    parser_web_start.add_argument('extracommands', nargs='?', help='Commands direct to openerp-web')
+    parser_web_start.add_argument('extracommands', nargs='*', help='Commands direct to openerp-web')
     parser_web_start.set_defaults(func=web_start,
                              environment=defaults.python_environment,
                              config=defaults.config_filename,

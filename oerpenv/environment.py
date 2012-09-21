@@ -23,6 +23,7 @@
 import re
 import virtualenv
 import sys
+import time
 from os import makedirs, walk, symlink
 from os.path import abspath, join, exists, dirname, basename
 from installable import Installable
@@ -160,9 +161,10 @@ class OpenERPEnvironment:
     def installables(self):
         installables_str = self._config.get('Environment.installables', False)
         if installables_str:
-            for i in installables_str.split(','):
-                method, url = i.strip().split(':',1)
-                yield Installable(method, url, join(self.env_path,'bin'))
+            for i in re.split('\s+', installables_str):
+                if len(i)>1:
+                    method, url = i.strip().split(':',1)
+                    yield Installable(method, url, join(self.env_path,'bin'))
         else:
             raise StopIteration
 
@@ -294,12 +296,15 @@ class OpenERPEnvironment:
         self.py_environment_name = name
         self.env_path = join(self.root_path, self.py_environment_name)
 
-    def execute(self, command, args, no_wait=False):
+    def execute(self, command, args, no_wait=False, check_for_termination=False):
         """
         Execute a command in the python environment defined in set_python_environment()
         """
         if no_wait:
             P = subprocess.Popen([join(self.env_path,'bin',command)] + args)
+            if check_for_termination:
+                time.sleep(5)
+                if not P.poll() is None: return None
             return P.pid
         else:
             P = subprocess.Popen([join(self.env_path,'bin',command)] + args)

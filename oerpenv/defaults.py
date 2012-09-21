@@ -32,6 +32,7 @@ user = getpass.getuser()
 
 environment_configuration = {
     'Environment.client-config-filename': 'openerp-client.conf',
+    'Environment.web-config-filename': 'openerp-web.conf',
     'Environment.server-config-filename': 'openerp-server.conf',
     'Environment.sources': '%(root)s/sources',
     'Environment.reports': '%(root)s/reports',
@@ -52,16 +53,17 @@ version_configuration = {
         '6.0': {
             'Environment.version': '6.0',
             'Environment.desc-filename': '__openerp__.py',
+            'Environment.openerp-web.options': '--server-port=8069 --server-host=localhost --addons=default/addons/ -p 8080',
             'Environment.installables': """
-                    pip:bzr+http://download.gna.org/pychart/bzr-archive,
-                    pip:lxml,
-                    pip:psycopg2,
-                    pip:Babel,
-                    pip:PyYAML,
-                    pip:reportlab,
-                    pip:python-dateutil==1.5,
-                    pip:hg+https://bitbucket.org/johnmc/zkemapi,
-                    pip:%(sources)s/server,
+                    pip:bzr+http://download.gna.org/pychart/bzr-archive
+                    pip:lxml
+                    pip:psycopg2
+                    pip:Babel
+                    pip:PyYAML
+                    pip:reportlab
+                    pip:python-dateutil==1.5
+                    pip:hg+https://bitbucket.org/johnmc/zkemapi
+                    pip:%(sources)s/server
                     pip:%(sources)s/web
             """,
             'Repositories.server': 'lp:~openerp/openobject-server/6.0',
@@ -75,15 +77,36 @@ version_configuration = {
             'Environment.version': '6.1',
             'Environment.desc-filename': '__openerp__.py',
             'Environment.installables': """
-                    pip:bzr+http://download.gna.org/pychart/bzr-archive,
-                    pip:lxml,
-                    pip:psycopg2,
-                    pip:Babel,
-                    pip:PyYAML,
-                    pip:reportlab,
-                    pip:python-dateutil==1.5,
-                    pip:hg+https://bitbucket.org/johnmc/zkemapi,
-                    pip:%(sources)s/server,
+                    pip:bzr+http://download.gna.org/pychart/bzr-archive
+                    pip:lxml
+                    pip:psycopg2
+                    pip:Babel>=0.9.6
+                    pip:simplejson>=2.0.6
+                    pip:python-dateutil>=1.4.1,<2
+                    pip:python-ldap
+                    pip:python-openid
+                    pip:werkzeug
+                    pip:pywebdav
+                    pip:unittest2
+                    pip:mock
+                    pip:pyyaml
+                    pip:reportlab
+                    pip:PIL
+                    pip:gdata
+                    pip:pydot
+                    pip:mako
+                    pip:psycopg2
+                    pip:feedparser
+                    pip:zsi
+                    pip:pytz
+                    pip:vatnumber
+                    pip:vobject
+                    pip:xlwt
+                    pip:pyopenssl
+                    pip:PyXML>=0.8.3
+                    pip:python-dateutil==1.5
+                    pip:hg+https://bitbucket.org/johnmc/zkemapi
+                    pip:%(sources)s/server
                     pip:%(sources)s/openerp-web
             """,
             'Repositories.server': 'lp:openobject-server/6.1',
@@ -94,15 +117,16 @@ version_configuration = {
             'Environment.version': '6.2',
             'Environment.desc-filename': '__openerp__.py',
             'Environment.installables': """
-                    pip:bzr+http://download.gna.org/pychart/bzr-archive,
-                    pip:lxml,
-                    pip:psycopg2,
-                    pip:Babel,
-                    pip:PyYAML,
-                    pip:reportlab,
-                    pip:python-dateutil==1.5,
-                    pip:hg+https://bitbucket.org/johnmc/zkemapi,
-                    pip:%(sources)s/server,
+                    pip:bzr+http://download.gna.org/pychart/bzr-archive
+                    pip:lxml
+                    pip:psycopg2
+                    pip:Babel
+                    pip:PyYAML
+                    pip:reportlab
+                    pip:PIL
+                    pip:python-dateutil==1.5
+                    pip:hg+https://bitbucket.org/johnmc/zkemapi
+                    pip:%(sources)s/server
                     pip:%(sources)s/openerp-web
             """,
             'Repositories.server': 'lp:openobject-server/trunk',
@@ -274,6 +298,10 @@ reportgz = False
 static_http_enable = False
 static_http_document_root = /var/www/html
 static_http_url_prefix = /
+""",
+    '%(root)s/etc/openerp-client.conf': """
+[global]
+addons-path=%(root)/addons
 """
 }
 

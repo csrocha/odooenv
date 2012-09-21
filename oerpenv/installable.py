@@ -23,6 +23,7 @@
 from os.path import abspath, basename, dirname, join, exists
 import imp
 import os
+import re
 import subprocess
 import StringIO
 
@@ -32,19 +33,16 @@ class Installable:
         Init an addon class information 
         """
         self._method = method
-        version = None
         repository_type = None
         if exists(url):
             repository_type = 'file'
-        if '=' in url and method in ['pip']:
-            url, version = url.split('==',1)
         if not repository_type and '+' in url and method in ['pip']:
             repository_type, url = url.split('+',1)
         self._url = url
-        self._version = version
         self._repository_type = repository_type
         self._bin_path = bin_path
         self._run = { 'setup': self.run_setup, 'pip': self.run_pip }[method]
+        self._short_name = re.split(r'[<>=]+', url, 1)[0]
         self._name = None
         self._fullname = None
         self._description = None
@@ -64,8 +62,9 @@ class Installable:
         bin_path = self._bin_path
         url = self._url
         if command in ['install']:
-            url = "%s==%s" % (url, self._version) if self._version else url
             url = "%s+%s" % (self._repository_type,url) if not self._repository_type in [None, 'file'] else url
+        if command in ['search']:
+            url = self._short_name
         command = [ join(bin_path, 'pip'), command, url ]
         P = subprocess.Popen(command,
                              stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -98,13 +97,15 @@ class Installable:
         elif method in ['pip'] and not self._repository_type in ['hg', 'bzr', 'file']:
             out, err, r = self.run_pip('search')
             try:
-                outs = dict([[ j.strip() for j in i.strip().split('- ',1) ] for i in out if '- ' in i ])
+                outs = dict([
+                    (lambda(a,b): (a.strip().lower(), b))(re.split(r'\s*-\s+',i,1))
+                    for i in out if '- ' in i ])
             except:
                 outs = {}
-            if url in outs:
-                name = url
+            if self._short_name.lower() in outs:
+                name = self._short_name
                 fullname = 'No fullname'
-                description = outs[url]
+                description = outs[self._short_name.lower()]
             else:
                 print err
                 raise RuntimeError('Installable %s not found\nWe found only this options:\n%s' % (url, ''.join(out)))
