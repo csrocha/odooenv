@@ -47,7 +47,7 @@ class Installable:
         self._fullname = None
         self._description = None
 
-    def run_setup(self, command):
+    def run_setup(self, command, wait=True):
         bin_path = self._bin_path
         url = self._url
         command = [ join(bin_path, 'python'), join(url,'setup.py'), command ]
@@ -55,8 +55,10 @@ class Installable:
                              cwd = url, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         out = P.stdout.readlines()
         err = P.stderr.readlines()
-        r = P.wait()
-        return out, err, r
+        if wait:
+            r = P.wait()
+            return out, err, r
+        return out, err, r, P.wait
 
     def run_pip(self, command):
         bin_path = self._bin_path
@@ -86,6 +88,9 @@ class Installable:
 
         if method in ['setup', 'pip'] and self._repository_type in ['file']:
             name, err, r = self.run_setup('--name')
+            if r != 0:
+                print "ERROR: This package is not well configured, or you need install previous modules to make it work"
+                print err
             name=','.join(name).strip() if r == 0 else url 
 
             fullname, err, r = self.run_setup('--fullname')
@@ -119,8 +124,7 @@ class Installable:
     def install(self):
         out, err, r = self._run('install')
 
-        if (("Successfully installed %s\n" % self.name in out) or
-            ("Cleaning up...\n" in out)):
+        if (r == 0):
             return True
         else:
             print ''.join(out)
