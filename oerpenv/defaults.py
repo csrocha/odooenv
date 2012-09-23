@@ -106,8 +106,8 @@ version_configuration = {
                     pip:PyXML>=0.8.3
                     pip:python-dateutil==1.5
                     pip:hg+https://bitbucket.org/johnmc/zkemapi
-                    pip:%(sources)s/server
-                    pip:%(sources)s/openerp-web
+                    setup:%(sources)s/server
+                    setup:%(sources)s/openerp-web
             """,
             'Repositories.server': 'lp:openobject-server/6.1',
             'Repositories.addons': 'lp:openobject-addons/6.1',

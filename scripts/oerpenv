@@ -5,7 +5,7 @@
 
 import sys, os, signal, ConfigParser
 import argparse
-from os.path import abspath, exists, join, basename, dirname, normpath, expanduser, expandvars
+from os.path import abspath, lexists, join, basename, dirname, normpath, expanduser, expandvars
 from os import remove
 import signal
 import psycopg2
@@ -46,7 +46,6 @@ def init(args):
             if operation == 'create':
                 print "Creating %s from %s" % (local_branch_url, remote_branch_url)
     except bzrlib.errors.NotBranchError, m:
-        import pdb; pdb.set_trace()
         print "Trouble creating/updating local repository."
         print "ERROR: %s" % m
         print "Please remove %s and execute the command again" % local_branch_url 
@@ -168,7 +167,7 @@ def list_addons(args):
 
     for addon in oerpenv.addons(args.filter_string):
         state = ''
-        if exists(join(oerpenv.get_addonsourcepath(), addon.token)):
+        if lexists(join(oerpenv.get_addonsourcepath(), addon.token)):
                 state = 'e'
         else:
                 state = 'd'
@@ -192,7 +191,7 @@ def enable_addon(args):
     else:
         to_install = set( args.addon )
 
-    if not exists(addons_path):
+    if not lexists(addons_path):
         print "Execute 'oerpenv install' before 'oerpenv enable'"
         return False
 
@@ -218,7 +217,7 @@ def enable_addon(args):
 
         where_install = join(addons_path, addon_name) 
 
-        if exists(where_install):
+        if lexists(where_install):
             print "Updating %s" % addon_name
             os.remove(where_install)
         else:
@@ -241,7 +240,7 @@ def disable_addon(args):
 
     addon_path = join(addons_path, args.addon[0])
 
-    if exists(addon_path):
+    if lexists(addon_path):
         print "Removing %s." % args.addon[0]
         remove(addon_path)
     else:
@@ -257,7 +256,7 @@ def create_dummy_addon(args):
     oerpenv.set_python_environment(args.environment)
 
     source_path = join(oerpenv.sources_path, args.addon[0])
-    if exists(source_path):
+    if lexists(source_path):
         print "Exists directory %s. Please remove it if you want a new dummy addon" % source_path
         return
     print "Creating dummy addon on %s" % source_path
@@ -290,7 +289,7 @@ def test_addon(args):
     oerpenv.set_python_environment(args.environment)
     addons_path = oerpenv.get_addonsourcepath()
 
-    if not all([exists(join(addons_path, token)) for token in args.addon]):
+    if not all([lexists(join(addons_path, token)) for token in args.addon]):
         print "Not all addons are enable." 
         print "Execute 'oerpenv enable %s' before run this command." % ' '.join(args.addon) 
         return False
@@ -407,7 +406,7 @@ def server_start(args):
             return False
     try:
         pidfilename = join(oerpenv.root_path, '.server_pid')
-        if exists(pidfilename):
+        if lexists(pidfilename):
             print "A server is running or .server_pid has not been deleted at the end of the server."
             print "Execute 'oerpenv stop' to stop the server and remove this file."
             return False
@@ -473,7 +472,7 @@ def web_start(args):
 
     try:
         pidfilename = join(oerpenv.root_path, '.web_pid')
-        if exists(pidfilename):
+        if lexists(pidfilename):
             print "A web client is running or .web_pid has not been deleted at the end of the web client."
             print "Execute 'oerpenv web-stop' to stop the web client and remove this file."
             return False
@@ -641,6 +640,7 @@ def dump_db(args):
     P = subprocess.Popen(['pg_dump', '-Fc', '--compress', '9', '-f', outfile, dbname])
     P.wait()
     pass
+
 def snapshot(args):
     """
     Generate a database snapshot.
@@ -691,8 +691,19 @@ def pip(args):
     if parameters is not None:
         options += [ parameters ]
 
-
     pid = oerpenv.execute('pip', options, no_wait=0)
+
+def activate(args):
+    """
+    Active bash instance in virtual environment.
+    """
+    oerpenv = OpenERPEnvironment(config_filename=args.config)
+    oerpenv.set_python_environment(args.environment)
+
+    print "Activating"
+    path=join(oerpenv.env_path, 'bin', 'activate')
+    P = subprocess.Popen(['bash', path ])
+    P.wait()
 
 def main():
     parser = argparse.ArgumentParser()
@@ -1014,6 +1025,17 @@ def main():
                              help='Pip command [help, install, bundle, freeze, install, search, uninstall, unzip, zip]')
     parser_pip.add_argument('parameters', nargs='?', help='Commands direct to openerp-server')
     parser_pip.set_defaults(func=pip,
+                             environment=defaults.python_environment,
+                             config=defaults.config_filename,
+                             parameters=None)
+
+    # The activate command
+    parser_activate = subparsers.add_parser('activate', help=activate.__doc__)
+    parser_activate.add_argument('--environment', '-e', metavar='environment', type=str, nargs='?',
+                             help='Python environment name.')
+    parser_activate.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
+                             help='Environment configuration file.')
+    parser_activate.set_defaults(func=activate,
                              environment=defaults.python_environment,
                              config=defaults.config_filename,
                              parameters=None)

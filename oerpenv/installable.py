@@ -112,7 +112,6 @@ class Installable:
                 fullname = 'No fullname'
                 description = outs[self._short_name.lower()]
             else:
-                print err
                 raise RuntimeError('Installable %s not found\nWe found only this options:\n%s' % (url, ''.join(out)))
         elif not self._repository_type in [ 'hg', 'bzr' ]:
             raise RuntimeError('Method not supported or wrong config file.')
