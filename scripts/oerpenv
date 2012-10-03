@@ -5,8 +5,10 @@
 
 import sys, os, signal, ConfigParser
 import argparse
-from os.path import abspath, lexists, join, basename, dirname, normpath, expanduser, expandvars
+import re
+from os.path import abspath, lexists, join, basename, dirname, normpath, expanduser, expandvars, relpath
 from os import remove
+from glob import iglob
 import signal
 import psycopg2
 import pprint
@@ -37,7 +39,7 @@ def init(args):
         oerpenv = OpenERPEnvironment(config_filename=config_filename, sources=repository, init=True, version=version)
     except RuntimeError, s:
         print s
-        return False
+        return -1
 
     try:
         for operation, local_branch_url, remote_branch_url in oerpenv.update(iterate=True):
@@ -49,11 +51,11 @@ def init(args):
         print "Trouble creating/updating local repository."
         print "ERROR: %s" % m
         print "Please remove %s and execute the command again" % local_branch_url 
-        return False
+        return -1
     except bzrlib.errors.InvalidURL:
         print "Trouble acceding remote repository."
         print "The url <%s> in the environment.conf is invalid. Modify it and try again." % remote_branch_url 
-        return False
+        return -1
 
 def setup(args):
     """
@@ -80,11 +82,11 @@ def update(args):
     except bzrlib.errors.NotBranchError:
         print "Trouble creating/updating local repository."
         print "Please remove %s and execute the command again." % local_branch_url 
-        return False
+        return -1
     except bzrlib.errors.InvalidURL:
         print "Trouble acceding remote repository."
         print "Please check the url <%s> in the environment.conf and try again." % remote_branch_url 
-        return False
+        return -1
     except pysvn._pysvn.ClientError, m:
         print "Trouble acceding remote repository."
         if 'callback_ssl_server_trust_prompt' in m:
@@ -92,7 +94,7 @@ def update(args):
             print "cd sources; svn co %s %s; cd .." % (remove_branch_url, local_branch_url)
         else:
             print m
-        return False
+        return -1
 
 def create(args):
     """
@@ -166,13 +168,8 @@ def list_addons(args):
     oerpenv.set_python_environment(args.environment)
 
     for addon in oerpenv.addons(args.filter_string):
-        state = ''
-        if lexists(join(oerpenv.get_addonsourcepath(), addon.token)):
-                state = 'e'
-        else:
-                state = 'd'
-                
-        print "%35ls :%s: %s" % (addon.token, state, addon.name)
+        state = 'e' if addon.is_enable(oerpenv) else 'd'
+        print "{1} {0:<25} {2:<40} {3}".format(addon.token, state, addon.name, relpath(addon.path))
 
 def enable_addon(args):
     """
@@ -183,7 +180,10 @@ def enable_addon(args):
 
     addons_path = oerpenv.get_addonsourcepath()
 
-    addons = dict([ (addon.token, addon) for addon in oerpenv.addons() ])
+    ignore_filter = re.compile(args.ignore_filter) if args.ignore_filter is not None else None
+
+    addons = dict([ (addon.token, addon) for addon in oerpenv.addons()
+                   if ignore_filter is None or ignore_filter.search(addon.path) is None ])
     addons_set = set(addons.keys())
 
     if 'all' in args.addon:
@@ -193,11 +193,11 @@ def enable_addon(args):
 
     if not lexists(addons_path):
         print "Execute 'oerpenv install' before 'oerpenv enable'"
-        return False
+        return -1
 
     if not to_install <= addons_set:
         print "No available addons '%s'." % ' '.join(to_install)
-        return False
+        return -1
 
     who_install = {}
 
@@ -214,20 +214,17 @@ def enable_addon(args):
             who_install[item] = addon_name
 
         to_install.update(addon.depends)
-
-        where_install = join(addons_path, addon_name) 
-
-        if lexists(where_install):
+        
+        if addon.is_enable(oerpenv):
             print "Updating %s" % addon_name
-            os.remove(where_install)
         else:
             print "Installing %s" % addon_name
 
-        os.symlink(addon.path, where_install)
+        addon.enable(oerpenv, force=True)
 
         if 'base' in to_install: to_install.remove('base')
 
-    return True
+    return 0
 
 def disable_addon(args):
     """
@@ -238,15 +235,17 @@ def disable_addon(args):
 
     addons_path = oerpenv.get_addonsourcepath()
 
-    addon_path = join(addons_path, args.addon[0])
+    files = iglob(join(addons_path, args.addon[0]))
 
-    if lexists(addon_path):
-        print "Removing %s." % args.addon[0]
-        remove(addon_path)
-    else:
-        print "Addon %s not enabled." % args.addon[0]
+    for addon_path in files:
+        addon = Addon(addon_path)
+        if addon.is_enable(oerpenv):
+            print "Removing %s." % Addon(files).token
+            addon.disable(oerpenv)
+        else:
+            print "Addon %s not enabled." % args.addon[0]
 
-    return True
+    return 0
 
 def create_dummy_addon(args):
     """
@@ -292,7 +291,7 @@ def test_addon(args):
     if not all([lexists(join(addons_path, token)) for token in args.addon]):
         print "Not all addons are enable." 
         print "Execute 'oerpenv enable %s' before run this command." % ' '.join(args.addon) 
-        return False
+        return -1
 
     if args.database is None and args.snapshot is None:
         dbname = "test_db_%s" % '_'.join(args.addon)
@@ -301,7 +300,7 @@ def test_addon(args):
             tools.create_database(dbname);
         except RuntimeError, m:
             print m
-            exit(-1)
+            return -1
     elif args.snapshot is None:
         print "Using database database %s." % args.database
         dbname = args.database
@@ -309,7 +308,7 @@ def test_addon(args):
         print "Recovering snapshot '%s' of the database '%s'." % (args.snapshot, args.database)
         if not tools.recover_snapshot(args.database, args.snapshot, oerpenv):
             print "ERROR: Cant recover snapshot %s." % args.snapshot
-            return False
+            return -1
         dbname = args.database
 
     print "Running test %s" % ','.join(args.addon)
@@ -329,8 +328,7 @@ def test_addon(args):
         print "If you move the environment please rebuild default python environment and check directories in environment.conf file."
         print "If all ok, be sure you executed 'oerpenv install' before run this command."
 
-    if ((args.database is not None and args.snapshot is None) or
-        (args.not_drop_db)):
+    if args.database is not None and args.snapshot is None and args.keep_db:
         pass
     else:
         print "Drop db %s" % dbname
@@ -399,17 +397,17 @@ def server_start(args):
     if snapshot:
         if database is None:
             print "ERROR: Cant recover snapshot %s, because not defined database" % snapshot
-            return False
+            return -1
         print "Recovering snapshot '%s' of the database '%s'." % (snapshot, database)
         if not tools.recover_snapshot(database, snapshot, oerpenv):
             print "ERROR: Cant recover snapshot %s." % snapshot
-            return False
+            return -1
     try:
         pidfilename = join(oerpenv.root_path, '.server_pid')
         if lexists(pidfilename):
             print "A server is running or .server_pid has not been deleted at the end of the server."
             print "Execute 'oerpenv stop' to stop the server and remove this file."
-            return False
+            return -1
         print "Running with options: %s" % ' '.join(options)
         pid = oerpenv.execute('openerp-server', options, no_wait=not debug)
         if not debug and pid is not None:
@@ -444,13 +442,13 @@ def server_stop(args):
     except IOError, m:
         print "No server information."
         print "ERROR: %s" % m
-        return False
+        return -1
     except OSError, m:
         print "No server running."
         print "ERROR: %s" % m
-        return False
+        return -1
     os.remove(pidfilename)
-    return True
+    return 0
 
 def web_start(args):
     """
@@ -475,7 +473,7 @@ def web_start(args):
         if lexists(pidfilename):
             print "A web client is running or .web_pid has not been deleted at the end of the web client."
             print "Execute 'oerpenv web-stop' to stop the web client and remove this file."
-            return False
+            return -1
         print "Running with options: %s" % ' '.join(options)
         pid = oerpenv.execute('openerp-web', options, no_wait=not debug, check_for_termination=True)
         if not debug and pid is not None:
@@ -510,13 +508,13 @@ def web_stop(args):
     except IOError, m:
         print "No web client information."
         print "ERROR: %s" % m
-        return False
+        return -1
     except OSError, m:
         print "No web client running."
         print "ERROR: %s" % m
-        return False
+        return -1
     os.remove(pidfilename)
-    return True
+    return 0
 
 
 def search_object(args):
@@ -809,9 +807,12 @@ def main():
                              help='Python environment name.')
     parser_enable_addon.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
                              help='Environment configuration file.')
+    parser_enable_addon.add_argument('--ignore-filter', '-i', metavar='ignore_filter', type=str, nargs='?',
+                             help='Ignore addons with directory accepted by this regular expression.')
     parser_enable_addon.set_defaults(func=enable_addon,
                              environment=defaults.python_environment,
-                             config=defaults.config_filename)
+                             config=defaults.config_filename,
+                             filter=None)
 
     # The disable_addon command
     parser_disable_addon = subparsers.add_parser('disable', help=disable_addon.__doc__)
@@ -845,8 +846,8 @@ def main():
                              help='Database name.')
     parser_test_addon.add_argument('--snapshot', '-s', metavar='snapshot', type=str, nargs='?',
                              help='Snapshot name.')
-    parser_test_addon.add_argument('--not-drop-db', '-D', action='store_true',
-                             help='Not drop db at end.')
+    parser_test_addon.add_argument('--keep-db', '-D', action='store_true',
+                             help='Don\'t drop db at end.')
     parser_test_addon.add_argument('--environment', '-e', metavar='environment', type=str, nargs='?',
                              help='Python environment name.')
     parser_test_addon.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
@@ -1051,6 +1052,7 @@ def main():
 Go to a environment directory where environment.conf exists, or
 create one using 'oerpenv init' command.
 """
+        return -1
     except NoVersionAvailableError, m:
         print "ERROR:", m.message
         print """
@@ -1059,16 +1061,18 @@ this link http://launchpad.org/oerpenv/bugs.
 
 
 """
-    exit(0)
+        return -1
+    return 0
 
 
-def signal_handler(signal, frame):
-    sys.exit(-1)
+#def signal_handler(signal, frame):
+#    print "WARNING: STOP by user."
+#    sys.exit(-1)
 
 if __name__ == "__main__":
-    signal.signal(signal.SIGINT, signal_handler)
+#    signal.signal(signal.SIGINT, signal_handler)
 
-    if not main():
-        exit(-1)
+    r = main()
+    sys.exit(r)
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

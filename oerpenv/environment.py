@@ -51,7 +51,6 @@ class OpenERPEnvironment:
         Arguments:
         config_filename -- Full path to the configuration file.
         """
-        self._version = version
         if not sources is None and not exists(sources):
             makedirs(sources)
         if exists(config_filename):
@@ -203,6 +202,10 @@ class OpenERPEnvironment:
                 ds = []
 
     @property
+    def version(self):
+        return self._config['Environment.version']
+
+    @property
     def repositories(self):
         return dict([ (name.split('.')[1], Repository(join(self.sources_path, name.split('.')[1]), remote_source))
                  for name, remote_source in self._config.items()
@@ -333,7 +336,7 @@ print os.path.join(TE["openerp-web"][0].location,'addons')
             """,
         }
 
-        p = subprocess.Popen([ python_exe, '-c', _query_addons[self._version] ],
+        p = subprocess.Popen([ python_exe, '-c', _query_addons[self.version] ],
                             stdout=subprocess.PIPE, stdin=subprocess.PIPE)
         addons_path = p.stdout.readlines()
         addons_path = [ p.strip() for p in addons_path if exists(p.strip()) ]

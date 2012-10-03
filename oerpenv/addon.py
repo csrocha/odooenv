@@ -20,7 +20,7 @@
 #
 ##############################################################################
 
-from os.path import abspath, basename, dirname, join
+from os.path import abspath, basename, dirname, join, lexists, realpath
 import os
 
 class Addon:
@@ -98,7 +98,7 @@ class Addon:
             self.read_description()
             return self._description['version']
 
-        def environement_path(self, environment):
+        def environment_path(self, environment):
             """
             Return the path of the addon in the environment.
             """
@@ -109,7 +109,34 @@ class Addon:
             """
             Return true if the addon is enabled in the environment.
             """
-            return exists(self.environment_path(environment))
+            path = self.environment_path(environment)
+            return lexists(path) and realpath(path) == self.path
+
+        def enable(self, environment, force=False):
+            """
+            Enable this addon in this environment. Not check depends.
+            """
+            addons_path = environment.get_addonsourcepath()
+            where_install = join(addons_path, self.token)
+
+            if self.is_enable(environment) and force:
+                os.remove(where_install)
+            elif self.is_enable(environment) and not force:
+                return False
+
+            os.symlink(self.path, where_install)
+            return True
+
+        def disable(self, environment, force=False):
+            """
+            Disable this addon in this environment. Not check depends.
+            """
+            if self.is_enable(environment):
+                os.remove(where_install)
+                return True
+            elif not self.is_enable(environment) and force:
+                return True
+            return False
 
         @property
         def objects(self):
