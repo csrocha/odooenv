@@ -110,4 +110,14 @@ def recover_snapshot(dbname, snapshot, oerpenv):
         print "PostgreSQL server is not running or other server is locking the database."
         return False
 
+def exists_db(dbname):
+    """
+    Check if exits a postgresql database.
+    """
+    conn = psycopg2.connect("")
+    cur = conn.cursor()
+    cur.execute("SELECT datname FROM pg_database where datname=%s;", (dbname,))
+    return bool(cur.rowcount)
+
+
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

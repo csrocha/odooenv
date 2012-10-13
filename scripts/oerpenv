@@ -293,23 +293,22 @@ def test_addon(args):
         print "Execute 'oerpenv enable %s' before run this command." % ' '.join(args.addon) 
         return -1
 
-    if args.database is None and args.snapshot is None:
-        dbname = "test_db_%s" % '_'.join(args.addon)
+    if args.snapshot is not None:
+        print "Recovering snapshot '%s' of the database '%s'." % (args.snapshot, args.database)
+        if not tools.recover_snapshot(args.database, args.snapshot, oerpenv):
+            print "ERROR: Cant recover snapshot %s." % args.snapshot
+            return -1
+        dbname = args.database
+    else:
+        dbname = args.database if args.database is not None else "test_db_%s" % '_'.join(args.addon)
+
+    if not tools.exists_db(dbname):
         print "Create db %s" % dbname
         try:
             tools.create_database(dbname);
         except RuntimeError, m:
             print m
             return -1
-    elif args.snapshot is None:
-        print "Using database database %s." % args.database
-        dbname = args.database
-    else:
-        print "Recovering snapshot '%s' of the database '%s'." % (args.snapshot, args.database)
-        if not tools.recover_snapshot(args.database, args.snapshot, oerpenv):
-            print "ERROR: Cant recover snapshot %s." % args.snapshot
-            return -1
-        dbname = args.database
 
     print "Running test %s" % ','.join(args.addon)
     try:
@@ -328,7 +327,7 @@ def test_addon(args):
         print "If you move the environment please rebuild default python environment and check directories in environment.conf file."
         print "If all ok, be sure you executed 'oerpenv install' before run this command."
 
-    if args.database is not None and args.snapshot is None and args.keep_db:
+    if args.keep_db:
         pass
     else:
         print "Drop db %s" % dbname
@@ -846,7 +845,7 @@ def main():
                              help='Database name.')
     parser_test_addon.add_argument('--snapshot', '-s', metavar='snapshot', type=str, nargs='?',
                              help='Snapshot name.')
-    parser_test_addon.add_argument('--keep-db', '-D', action='store_true',
+    parser_test_addon.add_argument('--keep-db', '-k', action='store_true',
                              help='Don\'t drop db at end.')
     parser_test_addon.add_argument('--environment', '-e', metavar='environment', type=str, nargs='?',
                              help='Python environment name.')
