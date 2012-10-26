@@ -318,9 +318,12 @@ def test_addon(args):
             options += [ '--config', oerpenv.server_config_filename ]
         if oerpenv._config['Environment.version'] in '6.0':
             options += [ '--test-report-directory', oerpenv.reports_path ]
+        if args.debug:
+            options += ['--debug']
         oerpenv.execute('openerp-server', initarg + ['-d', dbname] + options)
     except KeyboardInterrupt:
         print "KeyboardInterrupt event."
+        exit(-1)
     except OSError, m:
         print "Error in the environment."
         print "ERROR: %s" % m
@@ -847,13 +850,16 @@ def main():
                              help='Snapshot name.')
     parser_test_addon.add_argument('--keep-db', '-k', action='store_true',
                              help='Don\'t drop db at end.')
+    parser_test_addon.add_argument('--debug', '-g', action='store_true',
+                             help='Set server in debug mode.')
     parser_test_addon.add_argument('--environment', '-e', metavar='environment', type=str, nargs='?',
                              help='Python environment name.')
     parser_test_addon.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
                              help='Environment configuration file.')
     parser_test_addon.set_defaults(func=test_addon,
                              environment=defaults.python_environment,
-                             config=defaults.config_filename)
+                             config=defaults.config_filename,
+                             )
 
     # The client command
     parser_start_client = subparsers.add_parser('client', help=start_client.__doc__)
