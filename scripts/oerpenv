@@ -693,6 +693,72 @@ def pip(args):
 
     pid = oerpenv.execute('pip', options, no_wait=0)
 
+def csv2xml(args):
+    """
+    Convert CSV files to an XML files.
+    """
+    infile =  args.infile.pop()
+    outfile =  args.outfile.pop()
+    id_template =  args.id_template if args.id_template is not None else None
+    maps = args.map if args.map is not None else []
+
+    # Read maps of references
+    import xml.etree.ElementTree as ET
+    mapping_dict = {}
+    mapping = {}
+    for map in maps:
+        filename, model, name, fields = map.split(':')
+        tree = ET.parse(filename)
+        root = tree.getroot()
+        mapping_dict[model] = {}
+        for record in root.findall("./data/record[@model='%s']"%model):
+            mapping_dict[model][record.find("./field[@name='%s']"%name).text] = record.attrib['id']
+        for field in fields.split(','):
+            mapping[field] = mapping_dict[model]
+
+    with open(infile) as IN:
+        import csv
+        from Cheetah.Template import Template
+
+        templateDef = """\
+<?xml version="1.0" encoding="UTF-8"?>
+<openerp>
+    <data noupdate="True">
+        #for $id, $record in $records
+        <record model='$model' id='$id'>
+            #for $key, $value in $record.items()
+            #if $key in $mapping
+                <field name='$key' ref='$mapping[$key][$value]'/>
+            #else
+                <field name='$key'>$value</field>
+            #end if
+            #end for
+        </record> 
+        #end for
+    </data>
+</openerp>
+        """
+        reader = csv.DictReader(IN)
+        if id_template is not None:
+            pass
+        elif 'code' in reader.fieldnames:
+            id_template = "%(code)s"
+        else:
+            id_template = "%(_id)s"
+
+        records = list(reader)
+        records = zip(range(len(records)), records)
+        records = [ (id_template % dict(r, _id=id), r) for id, r in records ]
+
+        nameSpace={'model': '.'.join(infile.split('.')[:-1]),
+                   'records': records,
+                   'mapping': mapping}
+        t = Template(templateDef, searchList=[nameSpace])
+
+        with open(outfile, 'w') as OUT:
+            print >> OUT, t
+
+
 def activate(args):
     """
     Active bash instance in virtual environment.
@@ -1034,6 +1100,21 @@ def main():
                              environment=defaults.python_environment,
                              config=defaults.config_filename,
                              parameters=None)
+
+    # The csv2xml command
+    parser_csv2xml = subparsers.add_parser('csv2xml', help=csv2xml.__doc__)
+    parser_csv2xml.add_argument('infile', metavar='infile', type=str, nargs=1,
+                             help='CSV file to convert in xml')
+    parser_csv2xml.add_argument('outfile', metavar='infile', type=str, nargs=1,
+                             help='XML destination file')
+    parser_csv2xml.add_argument('id_template', metavar='id_template', type=str, nargs='?',
+                             help='Template for record id')
+    parser_csv2xml.add_argument('--map', '-m', metavar='map', type=str, nargs='*',
+                                help='Map a reference to an id in XML file. Format: [filename.xml]:[model]:[ID field]:[separated by comma list of fields witch refer the record model]')
+    parser_csv2xml.set_defaults(func=csv2xml,
+                             environment=defaults.python_environment,
+                             config=defaults.config_filename,
+                             id_template=None)
 
     # The activate command
     parser_activate = subparsers.add_parser('activate', help=activate.__doc__)
