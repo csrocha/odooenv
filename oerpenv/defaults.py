@@ -113,12 +113,32 @@ version_configuration = {
             'Repositories.addons': 'lp:openobject-addons/6.1',
             'Repositories.openerp-web': 'lp:openerp-web/6.1',
         },
-        'trunk': {
-            'Environment.version': '6.2',
+        '7.0': {
+            'Environment.version': '7.0',
             'Environment.desc-filename': '__openerp__.py',
             'Environment.installables': """
                     pip:bzr+http://download.gna.org/pychart/bzr-archive
-                    pip:lxml
+                    pip:https://github.com/lxml/lxml/archive/lxml-2.3.zip
+                    pip:psycopg2
+                    pip:Babel
+                    pip:PyYAML
+                    pip:reportlab
+                    pip:PIL
+                    pip:python-dateutil==1.5
+                    pip:hg+https://bitbucket.org/johnmc/zkemapi
+                    setup:%(sources)s/server
+            """,
+            'Repositories.server': 'lp:openobject-server/trunk',
+            'Repositories.addons': 'lp:openobject-addons/trunk',
+            'Repositories.openerp-web': 'lp:openerp-web/trunk',
+        },
+        'trunk': {
+            'Environment.version': '7.0',
+            'Environment.desc-filename': '__openerp__.py',
+            'Environment.installables': """
+                    pip:bzr+http://download.gna.org/pychart/bzr-archive
+                    pip:cython
+                    pip:https://github.com/lxml/lxml/archive/lxml-2.3.zip
                     pip:psycopg2
                     pip:Babel
                     pip:PyYAML
@@ -132,7 +152,7 @@ version_configuration = {
             'Repositories.server': 'lp:openobject-server/trunk',
             'Repositories.addons': 'lp:openobject-addons/trunk',
             'Repositories.openerp-web': 'lp:openerp-web/trunk',
-        }
+        },
 }
 
 openerp_header = """# -*- coding: utf-8 -*-

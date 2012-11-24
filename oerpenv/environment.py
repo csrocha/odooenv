@@ -334,6 +334,12 @@ TE = pkg_resources.Environment()
 print pkg_resources.resource_filename('openerp', 'addons')
 print os.path.join(TE["openerp-web"][0].location,'addons')
             """,
+            '7.0': """\
+import pkg_resources, os.path
+TE = pkg_resources.Environment()
+print pkg_resources.resource_filename('openerp', 'addons')
+if len(TE["openerp-web"])>0: print os.path.join(TE["openerp-web"][0].location,'addons')
+            """,
         }
 
         p = subprocess.Popen([ python_exe, '-c', _query_addons[self.version] ],

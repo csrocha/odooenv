@@ -38,6 +38,8 @@ class Installable:
             repository_type = 'file'
         if not repository_type and '+' in url and method in ['pip']:
             repository_type, url = url.split('+',1)
+        if not repository_type and not '+' in url and ':' in url and method in ['pip']:
+            repository_type = url.split(':',1)[0]
         self._url = url
         self._repository_type = repository_type
         self._bin_path = bin_path
@@ -64,7 +66,7 @@ class Installable:
         bin_path = self._bin_path
         url = self._url
         if command in ['install']:
-            url = "%s+%s" % (self._repository_type,url) if not self._repository_type in [None, 'file'] else url
+            url = "%s+%s" % (self._repository_type,url) if not self._repository_type in [None, 'file', 'http', 'https'] else url
         if command in ['search']:
             url = self._short_name
         command = [ join(bin_path, 'pip'), command, url ]
@@ -99,7 +101,7 @@ class Installable:
             description, err, r = self.run_setup('--description')
             description=','.join(description).strip() if r == 0 else 'No description'
 
-        elif method in ['pip'] and not self._repository_type in ['hg', 'bzr', 'file']:
+        elif method in ['pip'] and not self._repository_type in ['hg', 'bzr', 'file', 'http', 'https']:
             out, err, r = self.run_pip('search')
             try:
                 outs = dict([
@@ -113,7 +115,7 @@ class Installable:
                 description = outs[self._short_name.lower()]
             else:
                 raise RuntimeError('Installable %s not found\nWe found only this options:\n%s' % (url, ''.join(out)))
-        elif not self._repository_type in [ 'hg', 'bzr' ]:
+        elif not self._repository_type in [ 'hg', 'bzr', 'http', 'https' ]:
             raise RuntimeError('Method not supported or wrong config file.')
 
         self._name = name
