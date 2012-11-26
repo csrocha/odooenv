@@ -302,13 +302,13 @@ def test_addon(args):
     else:
         dbname = args.database if args.database is not None else "test_db_%s" % '_'.join(args.addon)
 
-    if not tools.exists_db(dbname):
-        print "Create db %s" % dbname
-        try:
+    try:
+        if not tools.exists_db(dbname):
+            print "Create db %s" % dbname
             tools.create_database(dbname);
-        except RuntimeError, m:
-            print m
-            return -1
+    except PostgresNotRunningError, m:
+        print m.message
+        return -1
 
     print "Running test %s" % ','.join(args.addon)
     try:

@@ -110,7 +110,15 @@ class Addon:
             Return true if the addon is enabled in the environment.
             """
             path = self.environment_path(environment)
-            return lexists(path) and realpath(path) == self.path
+            return lexists(path) and \
+                realpath(path) == self.path
+
+        def is_saned(self, environment):
+            """
+            Return true if the addon is saned.
+            """
+            path = self.environment_path(environment)
+            return lexists(path) and os.path.exists(realpath(path)) or not lexists(path)
 
         def enable(self, environment, force=False):
             """
@@ -118,10 +126,12 @@ class Addon:
             """
             addons_path = environment.get_addonsourcepath()
             where_install = join(addons_path, self.token)
+            is_enabled = self.is_enable(environment)
+            is_saned = self.is_saned(environment)
 
-            if self.is_enable(environment) and force:
+            if is_enabled and force or not is_saned:
                 os.remove(where_install)
-            elif self.is_enable(environment) and not force:
+            elif is_enabled and not force:
                 return False
 
             os.symlink(self.path, where_install)

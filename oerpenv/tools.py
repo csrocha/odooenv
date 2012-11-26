@@ -29,6 +29,10 @@ import psycopg2
 # Use 3 to postgresql v9.x
 default_isolation_level=3
 
+class PostgresNotRunningError(RuntimeError):
+    def __init__(self):
+        self.message = "No postgresql server to connect.\nPostgreSQL server is not running or other server is locking the database."
+
 def create_database(dbname):
         """
         Create a postgresql database.
@@ -107,17 +111,19 @@ def recover_snapshot(dbname, snapshot, oerpenv):
             return False
         return True
     except psycopg2.OperationalError:
-        print "PostgreSQL server is not running or other server is locking the database."
-        return False
+        raise PostgresNotRunningError
 
 def exists_db(dbname):
     """
     Check if exits a postgresql database.
     """
-    conn = psycopg2.connect("")
-    cur = conn.cursor()
-    cur.execute("SELECT datname FROM pg_database where datname=%s;", (dbname,))
-    return bool(cur.rowcount)
+    try:
+        conn = psycopg2.connect("")
+        cur = conn.cursor()
+        cur.execute("SELECT datname FROM pg_database where datname=%s;", (dbname,))
+        return bool(cur.rowcount)
+    except:
+        raise PostgresNotRunningError
 
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
