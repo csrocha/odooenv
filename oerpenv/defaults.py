@@ -118,6 +118,7 @@ version_configuration = {
             'Environment.desc-filename': '__openerp__.py',
             'Environment.installables': """
                     pip:bzr+http://download.gna.org/pychart/bzr-archive
+                    pip:cython
                     pip:https://github.com/lxml/lxml/archive/lxml-2.3.zip
                     pip:psycopg2
                     pip:Babel
