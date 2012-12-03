@@ -59,13 +59,16 @@ class BazaarRepository(RepositoryBase):
     def update(self):
         from bzrlib import workingtree
         wt = workingtree.WorkingTree.open(self.local_path)
-        remote_branch = Branch.open(self.remote_url)
-        wt.pull(remote_branch)
+        wt.update()
+        #remote_branch = Branch.open(self.remote_url)
+        #wt.pull(remote_branch)
 
     def checkout(self):
+        #import pdb; pdb.set_trace()
         remote_branch = Branch.open(self.remote_url)
-        local_branch = remote_branch.bzrdir.sprout(
-                self.local_path).open_branch()
+        tree = remote_branch.create_checkout(self.local_path, lightweight=True)
+        #local_branch = remote_branch.bzrdir.sprout(
+        #        self.local_path).open_branch()
 
     _url_re_ = [
         re.compile('^lp:.*$'),

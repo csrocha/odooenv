@@ -129,7 +129,9 @@ class Addon:
             is_enabled = self.is_enable(environment)
             is_saned = self.is_saned(environment)
 
-            if is_enabled and force or not is_saned:
+            if (os.path.exists(where_install) and force) or \
+               (is_enabled and force) or \
+               (not is_saned) :
                 os.remove(where_install)
             elif is_enabled and not force:
                 return False
