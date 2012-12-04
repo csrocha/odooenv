@@ -32,7 +32,7 @@ user = getpass.getuser()
 
 environment_configuration = {
     'Environment.client-config-filename': 'openerp-client.conf',
-    'Environment.web-config-filename': 'openerp-web.conf',
+    'Environment.web-config-filename': 'openerp-web.cfg',
     'Environment.server-config-filename': 'openerp-server.conf',
     'Environment.sources': '%(root)s/sources',
     'Environment.reports': '%(root)s/reports',
@@ -64,7 +64,7 @@ version_configuration = {
                     pip:python-dateutil==1.5
                     pip:hg+https://bitbucket.org/johnmc/zkemapi
                     pip:%(sources)s/server
-                    pip:%(sources)s/web
+                    setup:%(sources)s/web
             """,
             'Repositories.server': 'lp:~openerp/openobject-server/6.0',
             'Repositories.client': 'lp:~openerp/openobject-client/6.0',
