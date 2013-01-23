@@ -345,7 +345,7 @@ if len(TE["openerp-web"])>0: print os.path.join(TE["openerp-web"][0].location,'a
         p = subprocess.Popen([ python_exe, '-c', _query_addons[self.version] ],
                             stdout=subprocess.PIPE, stdin=subprocess.PIPE)
         addons_path = p.stdout.readlines()
-        addons_path = [ p.strip() for p in addons_path if exists(p.strip()) ]
-        return max(['--'] + addons_path)
+        addons_path = dict(zip(['server', 'web'],[ p.strip() for p in addons_path if exists(p.strip()) ]))
+        return addons_path
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

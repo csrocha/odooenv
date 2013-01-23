@@ -178,7 +178,7 @@ def enable_addon(args):
     oerpenv = OpenERPEnvironment(config_filename=args.config)
     oerpenv.set_python_environment(args.environment)
 
-    addons_path = oerpenv.get_addonsourcepath()
+    addons_path = oerpenv.get_addonsourcepath()['server']
 
     ignore_filter = re.compile(args.ignore_filter) if args.ignore_filter is not None else None
 
@@ -233,7 +233,7 @@ def disable_addon(args):
     oerpenv = OpenERPEnvironment(config_filename=args.config)
     oerpenv.set_python_environment(args.environment)
 
-    addons_path = oerpenv.get_addonsourcepath()
+    addons_path = oerpenv.get_addonsourcepath()['server']
 
     files = iglob(join(addons_path, args.addon[0]))
 
@@ -286,7 +286,7 @@ def test_addon(args):
     """
     oerpenv = OpenERPEnvironment(config_filename=args.config)
     oerpenv.set_python_environment(args.environment)
-    addons_path = oerpenv.get_addonsourcepath()
+    addons_path = oerpenv.get_addonsourcepath()['server']
 
     if not all([lexists(join(addons_path, token)) for token in args.addon]):
         print "Not all addons are enable." 
@@ -975,6 +975,8 @@ def main():
     parser_web_start = subparsers.add_parser('web-start', help=web_start.__doc__)
     parser_web_start.add_argument('--debug', '-d', action='store_true',
                              help='Start web client in debug mode. Stop until an exception.')
+    parser_web_start.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
+                             help='Environment configuration file.')
     parser_web_start.add_argument('extracommands', nargs='*', help='Commands direct to openerp-web')
     parser_web_start.set_defaults(func=web_start,
                              environment=defaults.python_environment,
@@ -1105,7 +1107,7 @@ def main():
     parser_csv2xml = subparsers.add_parser('csv2xml', help=csv2xml.__doc__)
     parser_csv2xml.add_argument('infile', metavar='infile', type=str, nargs=1,
                              help='CSV file to convert in xml')
-    parser_csv2xml.add_argument('outfile', metavar='infile', type=str, nargs=1,
+    parser_csv2xml.add_argument('outfile', metavar='outfile', type=str, nargs=1,
                              help='XML destination file')
     parser_csv2xml.add_argument('id_template', metavar='id_template', type=str, nargs='?',
                              help='Template for record id')
