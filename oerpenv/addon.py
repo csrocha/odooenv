@@ -102,7 +102,7 @@ class Addon:
             """
             Return the path of the addon in the environment.
             """
-            addons_path = environment.get_addonsourcepath()
+            addons_path = environment.get_addonsourcepath()['server']
             return join(addons_path, self.token)
 
         def is_enable(self, environment):
@@ -124,7 +124,7 @@ class Addon:
             """
             Enable this addon in this environment. Not check depends.
             """
-            addons_path = environment.get_addonsourcepath()
+            addons_path = environment.get_addonsourcepath()['server']
             where_install = join(addons_path, self.token)
             is_enabled = self.is_enable(environment)
             is_saned = self.is_saned(environment)
