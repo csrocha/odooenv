@@ -23,7 +23,7 @@
 from setuptools import setup
 
 setup(name='oerpenv',
-      version='1.7',
+      version='1.7.61',
       author='Cristian S. Rocha',
       author_email='cristian.rocha@moldeo.coop',
       maintainer='Cristian S. Rocha',
