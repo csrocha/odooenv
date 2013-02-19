@@ -200,6 +200,7 @@ def enable_addon(args):
         return -1
 
     who_install = {}
+    yet_enabled = set()
 
     while to_install and to_install <= addons_set:
         addon_name = to_install.pop()
@@ -210,7 +211,7 @@ def enable_addon(args):
             print "ERROR: %s try to install %s, but is unavailable." % (who_install[addon_name], addon_name)
             continue
 
-        for item in addon.depends:
+        for item in set(addon.depends):
             who_install[item] = addon_name
 
         to_install.update(addon.depends)
@@ -220,6 +221,8 @@ def enable_addon(args):
         else:
             print "Installing %s" % addon_name
 
+        yet_enabled.add(addon_name)
+        to_install = to_install - yet_enabled
         addon.enable(oerpenv, force=True)
 
         if 'base' in to_install: to_install.remove('base')
@@ -689,7 +692,7 @@ def pip(args):
     options = [ command ]
 
     if parameters is not None:
-        options += [ parameters ]
+        options += parameters
 
     pid = oerpenv.execute('pip', options, no_wait=0)
 
@@ -1095,9 +1098,9 @@ def main():
                              help='Python environment name.')
     parser_pip.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
                              help='Environment configuration file.')
-    parser_pip.add_argument('command', metavar='database', type=str, nargs=1,
+    parser_pip.add_argument('command', metavar='command', type=str, nargs=1,
                              help='Pip command [help, install, bundle, freeze, install, search, uninstall, unzip, zip]')
-    parser_pip.add_argument('parameters', nargs='?', help='Commands direct to openerp-server')
+    parser_pip.add_argument('parameters', nargs='*', help='Parameters to pip command')
     parser_pip.set_defaults(func=pip,
                              environment=defaults.python_environment,
                              config=defaults.config_filename,
