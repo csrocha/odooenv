@@ -316,13 +316,13 @@ def test_addon(args):
     print "Running test %s" % ','.join(args.addon)
     try:
         initarg = sum([['--init', v] for v in args.addon ], [])
-        options = ['--stop-after-init']
+        options = ['--stop-after-init', '--test-enable'] # Para la version 7.0
         if oerpenv.server_config_filename:
             options += [ '--config', oerpenv.server_config_filename ]
         if oerpenv._config['Environment.version'] in '6.0':
             options += [ '--test-report-directory', oerpenv.reports_path ]
         if args.debug:
-            options += ['--debug']
+            options += ['--debug', '--log-level=debug']
         oerpenv.execute('openerp-server', initarg + ['-d', dbname] + options)
     except KeyboardInterrupt:
         print "KeyboardInterrupt event."
@@ -676,6 +676,35 @@ def restore(args):
 
     if r:
         print "ERROR: Cant recover the snapshot."
+
+def extradite(args):
+    """
+    Copy database from remote/local server to local/remote server.
+    """
+    oerpenv = OpenERPEnvironment(config_filename=args.config)
+    snapshots = oerpenv.snapshots_path
+
+    operation = args.operation.pop()
+    host = args.host.pop()
+    dbname = args.database.pop()
+
+    cmd = []
+    if operation == 'from':
+        src_cmd = [ 'ssh', host, 'pg_dump', '-Fc', '--compress', '9', dbname ]
+        dst_cmd = [ 'pg_restore', '-x', '-c', '-O', '--disable-triggers', '-Fc', '-d', dbname ] 
+    elif operation == 'to':
+        src_cmd = [ 'pg_dump', '-Fc', '--compress', '9', dbname ]
+        dst_cmd = [ 'ssh', host, 'pg_restore', '-x', '-c', '-O', '--disable-triggers', '-Fc', '-d', dbname ] 
+    else:
+        print "ERROR: Invalid operation. Options are from or to."
+        return
+
+    src_p = subprocess.Popen(src_cmd, stdout=subprocess.PIPE)
+    dst_p = subprocess.Popen(dst_cmd, stdin=src_p.stdout, stdout=subprocess.PIPE)
+    src_p.stdout.close()
+    output = dst_p.communicate()
+        
+    return
 
 def pip(args):
     """
@@ -1079,6 +1108,19 @@ def main():
                              help='Environment configuration file.')
     parser_snapshot.set_defaults(func=snapshot,
                              name=datetime.datetime.today().strftime("%Y%m%d%H%M%S"),
+                             config=defaults.config_filename)
+
+    # The extradite command
+    parser_extradite = subparsers.add_parser('extradite', help=extradite.__doc__)
+    parser_extradite.add_argument('operation', metavar='name', type=str, nargs=1,
+                             help='from or to.')
+    parser_extradite.add_argument('host', metavar='database', type=str, nargs=1,
+                             help='Host origin/target of the database')
+    parser_extradite.add_argument('database', metavar='database', type=str, nargs=1,
+                             help='Database name.')
+    parser_extradite.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
+                             help='Environment configuration file.')
+    parser_extradite.set_defaults(func=extradite,
                              config=defaults.config_filename)
 
     # The restore command
