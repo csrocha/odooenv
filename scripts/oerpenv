@@ -186,6 +186,8 @@ def enable_addon(args):
                    if ignore_filter is None or ignore_filter.search(addon.path) is None ])
     addons_set = set(addons.keys())
 
+    ignore_depends = args.ignore_depends
+
     if 'all' in args.addon:
         to_install = addons_set
     else:
@@ -214,7 +216,8 @@ def enable_addon(args):
         for item in set(addon.depends):
             who_install[item] = addon_name
 
-        to_install.update(addon.depends)
+        if not ignore_depends:
+            to_install.update(addon.depends)
         
         if addon.is_enable(oerpenv):
             print "Updating %s" % addon_name
@@ -909,6 +912,8 @@ def main():
                              help='Environment configuration file.')
     parser_enable_addon.add_argument('--ignore-filter', '-i', metavar='ignore_filter', type=str, nargs='?',
                              help='Ignore addons with directory accepted by this regular expression.')
+    parser_enable_addon.add_argument('--ignore-depends', '-d', action='store_true',
+                             help='Not install dependecies.')
     parser_enable_addon.set_defaults(func=enable_addon,
                              environment=defaults.python_environment,
                              config=defaults.config_filename,
