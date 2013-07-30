@@ -84,6 +84,7 @@ class OpenERPEnvironment:
         self.defaults = {}
         self.config_filename = join(self.root_path, self.config_filename)
         self.set_python_environment(self.environments[0])
+        self.addonsourcepath=None
 
     def changetouser(self):
         """
@@ -115,6 +116,9 @@ class OpenERPEnvironment:
         iterate -- If true the update the function yield to an iteration.
         """
         for name, repository in self.repositories.items():
+            if repository is None:
+                import pdb; pdb.set_trace()
+                raise RuntimeError
             if len(repositories) == 0 or name in repositories:
                 if repository.state() == 'no exists':
                     command = 'create'
@@ -319,6 +323,9 @@ class OpenERPEnvironment:
         """
         Return a list of path to addons directories.
         """
+        if self.addonsourcepath is not None:
+            return self.addonsourcepath
+
         python_exe = join(self.env_path, 'bin', 'python')
 
         _query_addons = {
@@ -346,6 +353,7 @@ if len(TE["openerp-web"])>0: print os.path.join(TE["openerp-web"][0].location,'a
                             stdout=subprocess.PIPE, stdin=subprocess.PIPE)
         addons_path = p.stdout.readlines()
         addons_path = dict(zip(['server', 'web'],[ p.strip() for p in addons_path if exists(p.strip()) ]))
+        self.addonsourcepath = addons_path
         return addons_path
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

@@ -103,8 +103,25 @@ class SVNRepository(RepositoryBase):
         re.compile('^svn+ssh:.*'),
     ]
 
+class GITRepository(RepositoryBase):
+    def __init__(self, local_path, remote_url):
+        self = RepositoryBase.__init__(self, local_path, remote_url)
+
+    def update(self):
+        olddir = os.getcwd()
+        os.chdir(self.local_path)
+        subprocess.call(['git', 'pull'])
+        os.chdir(olddir)
+
+    def checkout(self):
+        subprocess.call(['git', 'clone', self.remote_url, self.local_path])
+
+    _url_re_ = [
+        re.compile('^git@.*$'),
+    ]
+
 def Repository(local_path, branch_url):
-    classes = [ BazaarRepository, SVNRepository ]
+    classes = [ BazaarRepository, SVNRepository, GITRepository ]
     for c in classes:
         if any([ ure.search(branch_url) is not None for ure in c._url_re_ ]):
             return c(local_path, branch_url)

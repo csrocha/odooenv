@@ -220,15 +220,16 @@ def enable_addon(args):
             to_install.update(addon.depends)
         
         if addon.is_enable(oerpenv):
-            print "Updating %s" % addon_name
+            print "Updating %s (%i)" % (addon_name, len(to_install))
         else:
-            print "Installing %s" % addon_name
+            print "Installing %s (%i)" % (addon_name, len(to_install))
 
         yet_enabled.add(addon_name)
         to_install = to_install - yet_enabled
         addon.enable(oerpenv, force=True)
 
-        if 'base' in to_install: to_install.remove('base')
+        if 'base' in to_install:
+            to_install.remove('base')
 
     return 0
 
@@ -326,6 +327,8 @@ def test_addon(args):
             options += [ '--test-report-directory', oerpenv.reports_path ]
         if args.debug:
             options += ['--debug', '--log-level=debug']
+        if args.commit:
+            options += ['--test-commit']
         oerpenv.execute('openerp-server', initarg + ['-d', dbname] + options)
     except KeyboardInterrupt:
         print "KeyboardInterrupt event."
@@ -697,7 +700,7 @@ def extradite(args):
         dst_cmd = [ 'pg_restore', '-x', '-c', '-O', '--disable-triggers', '-Fc', '-d', dbname ] 
     elif operation == 'to':
         src_cmd = [ 'pg_dump', '-Fc', '--compress', '9', dbname ]
-        dst_cmd = [ 'ssh', host, 'pg_restore', '-x', '-c', '-O', '--disable-triggers', '-Fc', '-d', dbname ] 
+        dst_cmd = [ 'ssh', host, 'pg_restore', '-x', '-C', '-c', '-O', '--disable-triggers', '-Fc', '-d', dbname ] 
     else:
         print "ERROR: Invalid operation. Options are from or to."
         return
@@ -953,6 +956,8 @@ def main():
                              help='Snapshot name.')
     parser_test_addon.add_argument('--keep-db', '-k', action='store_true',
                              help='Don\'t drop db at end.')
+    parser_test_addon.add_argument('--commit', '-m', action='store_true',
+                             help='Commit test changes in database.')
     parser_test_addon.add_argument('--debug', '-g', action='store_true',
                              help='Set server in debug mode.')
     parser_test_addon.add_argument('--environment', '-e', metavar='environment', type=str, nargs='?',

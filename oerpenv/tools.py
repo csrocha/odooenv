@@ -98,7 +98,7 @@ def load_configuration(filename):
                         value = None
                     options[section+'.'+name] = value
         except Exception, e:
-            print 'Unable to read config file %s !'% filename
+            raise RuntimeError('Unable to read config file %s !: %s'% (filename, e))
         return options
 
 def recover_snapshot(dbname, snapshot, oerpenv):
