@@ -15,6 +15,7 @@ import pprint
 import pysvn
 import datetime
 import subprocess
+import distutils
 
 import bzrlib
 from oerpenv import *
@@ -193,6 +194,8 @@ def enable_addon(args):
     else:
         to_install = set( args.addon )
 
+    c_t = len(to_install)
+
     if not lexists(addons_path):
         print "Execute 'oerpenv install' before 'oerpenv enable'"
         return -1
@@ -204,7 +207,9 @@ def enable_addon(args):
     who_install = {}
     yet_enabled = set()
 
-    while to_install and to_install <= addons_set:
+    c = 0
+
+    while to_install:
         addon_name = to_install.pop()
 
         if addon_name in addons:
@@ -230,6 +235,11 @@ def enable_addon(args):
 
         if 'base' in to_install:
             to_install.remove('base')
+
+        c = c + 1
+
+    if c_t > c:
+            print "Can't install %s modules" % (c_t - c)
 
     return 0
 
@@ -319,7 +329,8 @@ def test_addon(args):
 
     print "Running test %s" % ','.join(args.addon)
     try:
-        initarg = sum([['--init', v] for v in args.addon ], [])
+        op = "-i " if args.keep_db else "-i "
+        initarg = [ op + ','.join(args.addon) ]
         options = ['--stop-after-init', '--test-enable'] # Para la version 7.0
         if oerpenv.server_config_filename:
             options += [ '--config', oerpenv.server_config_filename ]
@@ -327,8 +338,11 @@ def test_addon(args):
             options += [ '--test-report-directory', oerpenv.reports_path ]
         if args.debug:
             options += ['--debug', '--log-level=debug']
+        else:
+            options += ['--log-level=test']
         if args.commit:
             options += ['--test-commit']
+        print "Executing:\n openerp-server", " ".join(initarg + ['-d', dbname] + options)
         oerpenv.execute('openerp-server', initarg + ['-d', dbname] + options)
     except KeyboardInterrupt:
         print "KeyboardInterrupt event."
@@ -338,6 +352,10 @@ def test_addon(args):
         print "ERROR: %s" % m
         print "If you move the environment please rebuild default python environment and check directories in environment.conf file."
         print "If all ok, be sure you executed 'oerpenv install' before run this command."
+
+    notify_send = distutils.spawn.find_executable('notify-send')
+    if notify_send:
+        src_p = subprocess.Popen([ notify_send, 'Test finished'])
 
     if args.keep_db:
         pass
@@ -677,7 +695,25 @@ def restore(args):
     snapshot_name = args.name
     infile = join(snapshots, "%s_%s.dump" % (dbname, snapshot_name))
 
-    P = subprocess.Popen(['pg_restore', '-x', '-c', '-O', '--disable-triggers', '-Fc', '-d', dbname, infile])
+    # Check if exists database
+    cmd = ['psql', '-c', '\\q', '-d', dbname ]
+    P = subprocess.Popen(cmd, stderr=subprocess.PIPE)
+    r = P.wait()
+    create_db = (r == 2)
+
+    cmd = ['pg_restore', '-x', '-O', '--disable-triggers', '-Fc' ]
+    if create_db:
+            cmd.append('-C')
+            cmd.append('-d')
+            cmd.append('template1')
+    else:
+            cmd.append('-1')
+            cmd.append('-c')
+            cmd.append('-d')
+            cmd.append(dbname)
+    cmd.append(infile)
+
+    P = subprocess.Popen(cmd)
     r = P.wait()
 
     if r:
@@ -696,19 +732,25 @@ def extradite(args):
 
     cmd = []
     if operation == 'from':
+        drp_cmd = [ 'psql', '-c' ,'DROP DATABASE IF EXISTS %s' % dbname ]
         src_cmd = [ 'ssh', host, 'pg_dump', '-Fc', '--compress', '9', dbname ]
-        dst_cmd = [ 'pg_restore', '-x', '-c', '-O', '--disable-triggers', '-Fc', '-d', dbname ] 
+        dst_cmd = [ 'pg_restore', '-x', '-C', '-c', '-O', '--disable-triggers', '-Fc' ]
     elif operation == 'to':
+        drp_cmd = [ 'ssh', host, 'psql', '-c' ,'DROP DATABASE IF EXISTS %s' % dbname ]
         src_cmd = [ 'pg_dump', '-Fc', '--compress', '9', dbname ]
-        dst_cmd = [ 'ssh', host, 'pg_restore', '-x', '-C', '-c', '-O', '--disable-triggers', '-Fc', '-d', dbname ] 
+        dst_cmd = [ 'ssh', host, 'pg_restore', '-x', '-c', '-O', '--disable-triggers', '-Fc', '-d', dbname ] 
     else:
         print "ERROR: Invalid operation. Options are from or to."
         return
 
+    #drp_p = subprocess.Popen(drp_cmd, stdout=subprocess.PIPE)
+    #drp_p.poll()
     src_p = subprocess.Popen(src_cmd, stdout=subprocess.PIPE)
     dst_p = subprocess.Popen(dst_cmd, stdin=src_p.stdout, stdout=subprocess.PIPE)
     src_p.stdout.close()
     output = dst_p.communicate()
+    dst_p.poll()
+    src_p.poll()
         
     return
 

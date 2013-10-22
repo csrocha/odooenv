@@ -129,9 +129,8 @@ version_configuration = {
                     pip:hg+https://bitbucket.org/johnmc/zkemapi
                     setup:%(sources)s/server
             """,
-            'Repositories.server': 'lp:openobject-server/trunk',
-            'Repositories.addons': 'lp:openobject-addons/trunk',
-            'Repositories.openerp-web': 'lp:openerp-web/trunk',
+            'Repositories.server': 'lp:openobject-server/7.0',
+            'Repositories.addons': 'lp:openobject-addons/7.0',
         },
         'trunk': {
             'Environment.version': '7.0',
