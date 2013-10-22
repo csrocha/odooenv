@@ -739,7 +739,7 @@ def extradite(args):
     elif operation == 'to':
         drp_cmd = [ 'ssh', host, 'psql', '-c' ,'DROP DATABASE IF EXISTS %s' % dbname ]
         src_cmd = [ 'pg_dump', '-Fc', '--compress', '9', dbname ]
-        dst_cmd = [ 'ssh', host, 'pg_restore', '-x', '-c', '-O', '--disable-triggers', '-Fc', '-d', dbname ] 
+        dst_cmd = [ 'ssh', host, 'pg_restore', '-x', '-C', '-c', '-O', '--disable-triggers', '-Fc' ] 
     else:
         print "ERROR: Invalid operation. Options are from or to."
         return
