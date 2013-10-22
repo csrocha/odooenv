@@ -1,3 +1,4 @@
 - Complete this TODO
 
 - enable version option for init.
+- add --force option in server-start sub-command

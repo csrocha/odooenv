@@ -393,6 +393,7 @@ def server_start(args):
     update =  args.update if args.update is not None else oerpenv.modules_update
     install =  args.install if args.install is not None else oerpenv.modules_install
     production =  args.production or oerpenv.production
+    force_start = args.force_start or False
     language =  args.language if args.language is not None else oerpenv.language
     extracommands =  args.extracommands if args.extracommands is not None else oerpenv.extracommands
 
@@ -433,7 +434,7 @@ def server_start(args):
             return -1
     try:
         pidfilename = join(oerpenv.root_path, '.server_pid')
-        if lexists(pidfilename):
+        if lexists(pidfilename) and (not force_start):
             print "A server is running or .server_pid has not been deleted at the end of the server."
             print "Execute 'oerpenv stop' to stop the server and remove this file."
             return -1
@@ -1033,6 +1034,8 @@ def main():
                              help='Snapshot of the database.')
     parser_server_start.add_argument('--debug', '-d', action='store_true',
                              help='Start server in debug mode. Stop until an exception.')
+    parser_server_start.add_argument('--force-start', '-f', action='store_true',
+                             help='Forces server start. Does not check whether a process file is present or not.')
     parser_server_start.add_argument('--production', '-p', action='store_true',
                              help='Start server in production mode. No test and demos.')
     parser_server_start.add_argument('--update', '-u', metavar='MODULES', type=str, nargs='*',

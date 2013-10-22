@@ -23,7 +23,7 @@
 from setuptools import setup
 
 setup(name='oerpenv',
-      version='1.7.64',
+      version='1.7.69',
       author='Cristian S. Rocha',
       author_email='cristian.rocha@moldeo.coop',
       maintainer='Cristian S. Rocha',
@@ -31,10 +31,10 @@ setup(name='oerpenv',
       url='http://business.moldeo.coop/',
       description='OpenERP Environment Administrator',
       long_description="""
-      OERPenv help you to administrate some virtual python environments with different OpenERP servers.
-      It's make easy to develop, migrate and maintain different versions of OpenERP servers.
+      OERPenv helps you manage virtual python environments with different OpenERP servers.
+      It's make easy to develop, migrate and maintain different versions of OpenERP servers in the same hardware box.
 
-      This package install a unique command 'oerpenv' with this commands:
+      This package installs command 'oerpenv' with these sub-commands:
 
       $ oerpenv -h
       usage: oerpenv [-h]

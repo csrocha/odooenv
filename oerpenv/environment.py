@@ -117,7 +117,6 @@ class OpenERPEnvironment:
         """
         for name, repository in self.repositories.items():
             if repository is None:
-                import pdb; pdb.set_trace()
                 raise RuntimeError
             if len(repositories) == 0 or name in repositories:
                 if repository.state() == 'no exists':
@@ -138,7 +137,7 @@ class OpenERPEnvironment:
         path = join(self.root, name)
         if exists(path): return False
 	virtualenv.logger = virtualenv.Logger([(virtualenv.Logger.level_for_integer(2), sys.stdout)])
-        virtualenv.create_environment(path,site_packages=False, use_distribute=True)
+        virtualenv.create_environment(path,site_packages=False)
         if name not in self.environments:
                 self.environments.append(name)
 

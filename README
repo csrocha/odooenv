@@ -7,9 +7,7 @@ This code is distributed under the MIT license.
 Requirements:
 -------------
 
-You must have installed pysvn and bzrlib.
-
-In Debian and Ubuntu you can execute: 
+You must have installed pysvn and bzrlib. In case you are working in a Debian or Ubuntu environment, you can install both packages with:
 
  aptitude install python-pysvn
  aptitude install python-bzrlib
@@ -17,14 +15,14 @@ In Debian and Ubuntu you can execute:
 Installation:
 -------------
 
-With all dependencies installed you can execute:
+After installing the needed dependencies, you have to execute:
 
  python setup.py install
 
 Usage:
 ------
 
-Then the oerpenv command line is available with the following sub-commands:
+The oerpenv command line is available with the following sub-commands:
 
 	usage: oerpenv [-h]
 		       
@@ -61,12 +59,12 @@ Then the oerpenv command line is available with the following sub-commands:
 	    show                Show addon information.
    
 
-All configurations are stored in the environment.conf file. You can setup it by hand or using the available commands.
+All configurations are stored in the environment.conf file. You can setup it by hand or by using the available commands listed above.
 
 Testing a module:
 -----------------
 
-To create a simple OpenERP instance execute the following commands in some work directory.
+To create a simple OpenERP instance you need to run the following commands in your work directory.
 
 $ oerpenv init openerp_env
 $ cd openerp_env
@@ -79,11 +77,11 @@ Search for an addon to test, like hr_attendance
 $ oerpenv enable hr_attendance
 $ oerpenv test hr_attendance
 
-Open other terminal and in the same environment directory execute:
+In case you want to run the server, you only need to execute:
 
-$ oerpenv client
+$ oerpenv server-start --debug
 
-Then the client will open and you can work.
+The server should be running and you can start working with OpenERP by launching your browser and pointing it to the appropiate port (commonly 8069)
 
 Develop a new addon not from zero:
 ----------------------------------
