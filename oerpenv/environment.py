@@ -67,7 +67,7 @@ class OpenERPEnvironment:
             self._config.update(defaults.version_configuration[version])
             self._config['Environment.root'] = self.root_path
             if not sources is None:
-                default_sources = self._config['Environment.sources'].replace('$(root)s', self.root_path)
+                default_sources = self._config['Environment.sources']
                 symlink(sources, default_sources)
                 self._config['Environment.sources'] = sources
             self.environments = []
@@ -97,7 +97,7 @@ class OpenERPEnvironment:
         """
         Load configuration file.
         """
-        self._config = tools.load_configuration(self.config_filename)
+        self._config = tools.load_configuration(self.config_filename, defaults={'root': self.root_path})
         self.environments = self._config['Environment.environments'].split(',')
 
     def save(self, init=False):
@@ -167,7 +167,6 @@ class OpenERPEnvironment:
             for i in re.split('\s+', installables_str):
                 if len(i)>1:
                     method, url = i.strip().split(':',1)
-                    url = url.replace('$(root)s', self.root)
                     yield Installable(method, url, join(self.env_path,'bin'))
         else:
             raise StopIteration
@@ -198,7 +197,7 @@ class OpenERPEnvironment:
         else:
             filter_e = lambda a: True
 
-        for path, ds, fs in walk(self._config['Environment.sources'], followlinks=True):
+        for path, ds, fs in walk(self.sources_path, followlinks=True):
             if self._config['Environment.desc-filename'] in fs and filter_t(basename(path)):
                 addon = Addon(join(path, self._config['Environment.desc-filename']))
                 if filter_o(addon) and filter_i(addon) and filter_e(addon):
@@ -221,27 +220,27 @@ class OpenERPEnvironment:
 
     @property
     def sources_path(self):
-        return self._config['Environment.sources'].replace('$(root)s', self.root)
+        return self._config['Environment.sources']
 
     @property
     def description_filename(self):
-        return self._config['Environment.desc-filename'].replace('$(root)s', self.root)
+        return self._config['Environment.desc-filename']
 
     @property
     def reports_path(self):
-        return self._config['Environment.reports'].replace('$(root)s', self.root)
+        return self._config['Environment.reports']
 
     @property
     def snapshots_path(self):
-        return self._config['Environment.snapshots'].replace('$(root)s', self.root)
+        return self._config['Environment.snapshots']
 
     @property
     def addons_dir(self):
-        return self._config['Environment.addons'].replace('$(root)s', self.root)
+        return self._config['Environment.addons']
 
     @property
     def desc_filename(self):
-        return self._config['Environment.desc-filename'].replace('$(root)s', self.root)
+        return self._config['Environment.desc-filename']
 
     @property
     def client_config_filename(self):

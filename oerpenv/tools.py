@@ -80,13 +80,13 @@ def save_configuration(options, filename):
             print 'Unable to write config file %s !'% (filename,)
         return True
 
-def load_configuration(filename):
+def load_configuration(filename, defaults=None):
         """
         Return a dictonary from a ConfigParse format file.
         """
         options = {}
         try:
-            p = ConfigParser.ConfigParser()
+            p = ConfigParser.ConfigParser(defaults=defaults)
             p.read([filename])
             for section in p.sections():
                 for (name,value) in p.items(section):
