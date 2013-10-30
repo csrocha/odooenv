@@ -67,7 +67,7 @@ class OpenERPEnvironment:
             self._config.update(defaults.version_configuration[version])
             self._config['Environment.root'] = self.root_path
             if not sources is None:
-                default_sources = self._config['Environment.sources'] % { 'root' : self.root_path }
+                default_sources = self._config['Environment.sources'].replace('$(root)s', self.root_path)
                 symlink(sources, default_sources)
                 self._config['Environment.sources'] = sources
             self.environments = []
@@ -220,7 +220,7 @@ class OpenERPEnvironment:
 
     @property
     def sources_path(self):
-        return self._config['Environment.sources'] % {'root': self.root}
+        return self._config['Environment.sources'].replace('$(root)s', self.root)
 
     @property
     def description_filename(self):
