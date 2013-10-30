@@ -115,7 +115,7 @@ class OpenERPEnvironment:
         Arguments:
         iterate -- If true the update the function yield to an iteration.
         """
-        for name, repository in self.repositories.items():
+        for name, repository in self.repositories.iteritems():
             if repository is None:
                 raise RuntimeError
             if len(repositories) == 0 or name in repositories:
@@ -216,11 +216,11 @@ class OpenERPEnvironment:
 
     @property
     def root(self):
-        return self._config['Environment.root']
+        return self._config.get('Environment.root', self.root_path)
 
     @property
     def sources_path(self):
-        return self._config['Environment.sources']
+        return self._config['Environment.sources'] % {'root': self.root}
 
     @property
     def description_filename(self):
