@@ -167,6 +167,7 @@ class OpenERPEnvironment:
             for i in re.split('\s+', installables_str):
                 if len(i)>1:
                     method, url = i.strip().split(':',1)
+                    url = url.replace('$(root)s', self.root)
                     yield Installable(method, url, join(self.env_path,'bin'))
         else:
             raise StopIteration
