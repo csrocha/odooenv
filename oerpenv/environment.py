@@ -225,23 +225,23 @@ class OpenERPEnvironment:
 
     @property
     def description_filename(self):
-        return self._config['Environment.desc-filename']
+        return self._config['Environment.desc-filename'].replace('$(root)s', self.root)
 
     @property
     def reports_path(self):
-        return self._config['Environment.reports']
+        return self._config['Environment.reports'].replace('$(root)s', self.root)
 
     @property
     def snapshots_path(self):
-        return self._config['Environment.snapshots']
+        return self._config['Environment.snapshots'].replace('$(root)s', self.root)
 
     @property
     def addons_dir(self):
-        return self._config['Environment.addons']
+        return self._config['Environment.addons'].replace('$(root)s', self.root)
 
     @property
     def desc_filename(self):
-        return self._config['Environment.desc-filename']
+        return self._config['Environment.desc-filename'].replace('$(root)s', self.root)
 
     @property
     def client_config_filename(self):
