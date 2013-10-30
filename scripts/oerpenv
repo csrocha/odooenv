@@ -329,8 +329,8 @@ def test_addon(args):
 
     print "Running test %s" % ','.join(args.addon)
     try:
-        op = "-i " if args.keep_db else "-i "
-        initarg = [ op + ','.join(args.addon) ]
+        op = "-i" if args.keep_db else "-i"
+        initarg = [op] + [ ','.join(args.addon) ]
         options = ['--stop-after-init', '--test-enable'] # Para la version 7.0
         if oerpenv.server_config_filename:
             options += [ '--config', oerpenv.server_config_filename ]
@@ -342,7 +342,7 @@ def test_addon(args):
             options += ['--log-level=test']
         if args.commit:
             options += ['--test-commit']
-        print "Executing:\n openerp-server", " ".join(initarg + ['-d', dbname] + options)
+        print "Executing:\n openerp-server", " ".join(options + initarg + ['-d', dbname])
         oerpenv.execute('openerp-server', initarg + ['-d', dbname] + options)
     except KeyboardInterrupt:
         print "KeyboardInterrupt event."
@@ -733,19 +733,19 @@ def extradite(args):
 
     cmd = []
     if operation == 'from':
-        drp_cmd = [ 'psql', '-c' ,'DROP DATABASE IF EXISTS %s' % dbname ]
+        drp_cmd = [ 'psql', '-c' ,'DROP DATABASE IF EXISTS \"%s\"' % dbname ]
         src_cmd = [ 'ssh', host, 'pg_dump', '-Fc', '--compress', '9', dbname ]
-        dst_cmd = [ 'pg_restore', '-x', '-C', '-c', '-O', '--disable-triggers', '-Fc' ]
+        dst_cmd = [ 'pg_restore', '-x', '-C', '-O', '--disable-triggers', '-Fc', '-d', 'postgres' ]
     elif operation == 'to':
         drp_cmd = [ 'ssh', host, 'psql', '-c' ,'DROP DATABASE IF EXISTS %s' % dbname ]
         src_cmd = [ 'pg_dump', '-Fc', '--compress', '9', dbname ]
-        dst_cmd = [ 'ssh', host, 'pg_restore', '-x', '-C', '-c', '-O', '--disable-triggers', '-Fc' ] 
+        dst_cmd = [ 'ssh', host, 'pg_restore', '-x', '-C', '-O', '--disable-triggers', '-Fc', '-d', 'postgres' ] 
     else:
         print "ERROR: Invalid operation. Options are from or to."
         return
 
-    #drp_p = subprocess.Popen(drp_cmd, stdout=subprocess.PIPE)
-    #drp_p.poll()
+    drp_p = subprocess.Popen(drp_cmd) #, stdout=subprocess.PIPE)
+    drp_p.poll()
     src_p = subprocess.Popen(src_cmd, stdout=subprocess.PIPE)
     dst_p = subprocess.Popen(dst_cmd, stdin=src_p.stdout, stdout=subprocess.PIPE)
     src_p.stdout.close()
