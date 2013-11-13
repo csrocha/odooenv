@@ -117,7 +117,7 @@ class OpenERPEnvironment:
         """
         for name, repository in self.repositories.iteritems():
             if repository is None:
-                raise RuntimeError
+                raise RuntimeError('Repository %s is not exists' % name)
             if len(repositories) == 0 or name in repositories:
                 if repository.state() == 'no exists':
                     command = 'create'
@@ -212,7 +212,7 @@ class OpenERPEnvironment:
     def repositories(self):
         return dict([ (name.split('.')[1], Repository(join(self.sources_path, name.split('.')[1]), remote_source))
                  for name, remote_source in self._config.items()
-                 if name.split('.')[0] == 'Repositories' ])
+                 if name.split('.')[0] == 'Repositories' and name.split('.')[1] != 'root'])
 
     @property
     def root(self):
@@ -341,6 +341,12 @@ print pkg_resources.resource_filename('openerp', 'addons')
 print os.path.join(TE["openerp-web"][0].location,'addons')
             """,
             '7.0': """\
+import pkg_resources, os.path
+TE = pkg_resources.Environment()
+print pkg_resources.resource_filename('openerp', 'addons')
+if len(TE["openerp-web"])>0: print os.path.join(TE["openerp-web"][0].location,'addons')
+            """,
+            '8.0': """\
 import pkg_resources, os.path
 TE = pkg_resources.Environment()
 print pkg_resources.resource_filename('openerp', 'addons')
