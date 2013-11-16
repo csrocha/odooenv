@@ -134,7 +134,7 @@ version_configuration = {
             'Repositories.openerp-web': 'lp:openerp-web/7.0',
         },
         'trunk': {
-            'Environment.version': '7.0',
+            'Environment.version': '8.0',
             'Environment.desc-filename': '__openerp__.py',
             'Environment.installables': """
                     pip:bzr+http://download.gna.org/pychart/bzr-archive
