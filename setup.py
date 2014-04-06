@@ -102,7 +102,7 @@ setup(name='oerpenv',
       scripts=['scripts/oerpenv'],
       packages=['oerpenv'],
       test_suite='tests',
-      install_requires=['virtualenv','psycopg2','argparse','bzr'],
+      install_requires=['virtualenv','psycopg2','argparse','bzr','bzrlib'],
       dependency_links=['http://pysvn.barrys-emacs.org/source_kits/pysvn-1.7.5.tar.gz'],
    )
 
