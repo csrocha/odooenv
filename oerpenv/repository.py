@@ -23,14 +23,18 @@
 from bzrlib.plugin import load_plugins
 from bzrlib.branch import Branch
 from bzrlib import workingtree
-import pysvn
-
 from os.path import abspath, basename, dirname, join, exists
 import imp
 import os
 import re
 import subprocess
 import StringIO
+
+try:
+    import pysvn
+    without_svn = False
+except:
+    without_svn = True
 
 class RepositoryBase:
     def __init__(self, local_path, remote_url):
@@ -84,6 +88,9 @@ def ssl_server_trust_prompt( trust_dict ):
 
 class SVNRepository(RepositoryBase):
     def __init__(self, local_path, remote_url):
+        if without_svn:
+            raise RuntimeError("You need install PySVN to use SVN capabilities."
+
         self = RepositoryBase.__init__(self, local_path, remote_url)
         load_plugins()
 
