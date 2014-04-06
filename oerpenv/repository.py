@@ -89,7 +89,7 @@ def ssl_server_trust_prompt( trust_dict ):
 class SVNRepository(RepositoryBase):
     def __init__(self, local_path, remote_url):
         if without_svn:
-            raise RuntimeError("You need install PySVN to use SVN capabilities."
+            raise RuntimeError("You need install PySVN to use SVN capabilities.")
 
         self = RepositoryBase.__init__(self, local_path, remote_url)
         load_plugins()
