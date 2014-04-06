@@ -12,12 +12,16 @@ from glob import iglob
 import signal
 import psycopg2
 import pprint
-import pysvn
 import datetime
 import subprocess
 import distutils
-
 import bzrlib
+
+try:
+    import pysvn
+except:
+    print "Can't use SVN repositories. Please install pysvn. Debian: sudo aptitude install python-svn"
+
 from oerpenv import *
 
 def init(args):
@@ -452,8 +456,10 @@ def server_start(args):
     except KeyboardInterrupt:
         print "KeyboardInterrupt event."
     except OSError, m:
+        import sys, traceback
         print "Environment Error."
         print "ERROR: %s" % m
+        traceback.print_exc(file=sys.stdout)
         print "If you move the environment please rebuild default python environment and check directories in environment.conf file."
         print "If all ok, be sure you executed 'oerpenv install' before run this command."
 
