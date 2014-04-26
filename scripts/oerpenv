@@ -173,7 +173,7 @@ def list_addons(args):
     oerpenv.set_python_environment(args.environment)
 
     for addon in oerpenv.addons(args.filter_string):
-        state = 'e' if addon.is_enable(oerpenv) else 'd'
+        state = 'e' if addon.is_enable(oerpenv) else 'd' if addon.is_saned(oerpenv) else 'b'
         print "{1} {0:<25} {2:<40} {3}".format(addon.token, state, addon.name, relpath(addon.path))
 
 def enable_addon(args):
@@ -183,7 +183,11 @@ def enable_addon(args):
     oerpenv = OpenERPEnvironment(config_filename=args.config)
     oerpenv.set_python_environment(args.environment)
 
-    addons_path = oerpenv.get_addonsourcepath()['server']
+    path_map = oerpenv.get_addonsourcepath()
+    if 'server' not in path_map:
+        raise "Server is not installed"
+
+    addons_path = path_map['server']
 
     ignore_filter = re.compile(args.ignore_filter) if args.ignore_filter is not None else None
 

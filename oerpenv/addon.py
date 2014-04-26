@@ -20,7 +20,7 @@
 #
 ##############################################################################
 
-from os.path import abspath, basename, dirname, join, lexists, realpath
+from os.path import abspath, basename, dirname, join, exists, lexists, realpath
 import os
 
 class Addon:
@@ -61,7 +61,7 @@ class Addon:
             Return addon long description.
             """
             self.read_description()
-            return self._description['description']
+            return self._description.get('description','')
 
         @property
         def depends(self):
@@ -69,7 +69,7 @@ class Addon:
             Return addon list with the addon depends.
             """
             self.read_description()
-            return self._description['depends']
+            return self._description.get('depends',[])
 
         @property
         def website(self):
@@ -77,10 +77,7 @@ class Addon:
             Return the website of the addon.
             """
             self.read_description()
-            if 'website' in self._description:
-                return self._description['website']
-            else:
-                return None
+            return self._description.get('website',None)
 
         @property
         def author(self):
@@ -88,7 +85,7 @@ class Addon:
             Return the author of the addon.
             """
             self.read_description()
-            return self._description['author']
+            return self._description.get('author',None)
 
         @property
         def version(self):
@@ -96,7 +93,7 @@ class Addon:
             Return the version of the addon.
             """
             self.read_description()
-            return self._description['version']
+            return self._description.get('version',None)
 
         def environment_path(self, environment):
             """
@@ -110,7 +107,7 @@ class Addon:
             Return true if the addon is enabled in the environment.
             """
             path = self.environment_path(environment)
-            return lexists(path) and \
+            return exists(path) and \
                 realpath(path) == self.path
 
         def is_saned(self, environment):
@@ -128,15 +125,20 @@ class Addon:
             where_install = join(addons_path, self.token)
             is_enabled = self.is_enable(environment)
             is_saned = self.is_saned(environment)
+            is_exists = os.path.exists(where_install)
+            is_link = os.path.islink(where_install)
 
-            if (os.path.exists(where_install) and force) or \
-               (is_enabled and force) or \
-               (not is_saned) :
-                os.remove(where_install)
-            elif is_enabled and not force:
-                return False
+            if is_link:
+                if ((is_exists and force) or \
+                    (is_enabled and force) or \
+                    (not is_saned)):
+                    os.remove(where_install)
+                elif is_enabled and not force:
+                    return False
 
-            os.symlink(self.path, where_install)
+            if not os.path.exists(where_install):
+                os.symlink(self.path, where_install)
+
             return True
 
         def disable(self, environment, force=False):

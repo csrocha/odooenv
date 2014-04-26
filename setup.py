@@ -23,7 +23,7 @@
 from setuptools import setup
 
 setup(name='oerpenv',
-      version='1.7.79',
+      version='1.8.7',
       author='Cristian S. Rocha',
       author_email='cristian.rocha@moldeo.coop',
       maintainer='Cristian S. Rocha',
@@ -102,7 +102,7 @@ setup(name='oerpenv',
       scripts=['scripts/oerpenv'],
       packages=['oerpenv'],
       test_suite='tests',
-      install_requires=['virtualenv','psycopg2','argparse','bzr','bzrlib'],
+      install_requires=['virtualenv','psycopg2','argparse','bzr'],
       dependency_links=['http://pysvn.barrys-emacs.org/source_kits/pysvn-1.7.5.tar.gz'],
    )
 

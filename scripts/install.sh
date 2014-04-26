@@ -79,7 +79,7 @@ sudo -u openerp oerpenv update
 sudo -u openerp oerpenv install
 sudo -u openerp oerpenv enable all
 sudo -u openerp oerpenv server-start --debug -- --save --stop-after-init
-sudo -u openerp sed -i 's/debug_mode = True/debug_mode = False/g' /opt/openerp/v$VERSION/default/etc/openerp-server.conf
+sudo -u openerp sed -i 's/debug_mode = True/debug_mode = False/g' default/etc/openerp-server.conf
 sudo -u openerp sed -i 's/_interface =.*/_interface = 127.0.0.1/g' default/etc/openerp-server.conf
 
 # Startup script

@@ -198,7 +198,9 @@ class OpenERPEnvironment:
             filter_e = lambda a: True
 
         for path, ds, fs in walk(self.sources_path, followlinks=True):
-            if self._config['Environment.desc-filename'] in fs and filter_t(basename(path)):
+            if self._config['Environment.desc-filename'] in fs and \
+               '__init__.py' in fs and \
+               filter_t(basename(path)):
                 addon = Addon(join(path, self._config['Environment.desc-filename']))
                 if filter_o(addon) and filter_i(addon) and filter_e(addon):
                     yield addon
