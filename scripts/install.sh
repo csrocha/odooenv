@@ -117,8 +117,3 @@ fi
 
 exit
 
-http://effbot.org/media/downloads/Imaging-1.1.7.tar.gz
-
-sudo -u openerp oerpenv enable all
-sudo -u openerp oerpenv server-start --debug -- --save --log-level=debug
-

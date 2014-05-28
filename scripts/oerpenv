@@ -6,8 +6,9 @@
 import sys, os, signal, ConfigParser
 import argparse
 import re
-from os.path import abspath, lexists, join, basename, dirname, normpath, expanduser, expandvars, relpath
-from os import remove
+from os.path import abspath, lexists, join, basename, dirname, normpath, expanduser, expandvars, relpath, islink
+from os import remove, rename, readlink, symlink, chmod
+import stat
 from glob import iglob
 import signal
 import psycopg2
@@ -862,6 +863,58 @@ def activate(args):
     P = subprocess.Popen(['bash', path ])
     P.wait()
 
+def repath(args):
+    """
+    Change path to enviroment scripts.
+    """
+    oerpenv = OpenERPEnvironment(config_filename=args.config)
+    oerpenv.set_python_environment(args.environment)
+
+    binpath_re = re.compile('^#!(.*)(bin/)(.*)$')
+    linkpath_re = re.compile('^(.*)(sources/.*)$')
+
+
+    print "Repathing links...",
+    for root, dirs, files in os.walk("./default", topdown=False):
+        for filename in files:
+            ori_filename = join(root,filename)
+            if islink(ori_filename):
+                ori_link = abspath(join(dirname(ori_filename), readlink(ori_filename)))
+                if ori_link.find(oerpenv.env_path):
+                    m = linkpath_re.search(ori_link)
+                    if m:
+                        ori_path, ori_link = m.groups()
+                        tar_link = abspath(join(oerpenv.root_path, ori_link))
+                        remove(ori_filename)
+                        symlink(tar_link, ori_filename)
+    print "Done"
+
+    print "Repathing scripts...",
+    for root, dirs, files in os.walk("./default/bin", topdown=False):
+        for filename in files:
+            ori_filename = join(root,filename)
+            with  open(ori_filename) as f:
+                l = f.readline()
+                m = binpath_re.search(l)
+                if m:
+                    ori_path, default_bin, bin_file = m.groups()
+                    new_first_line =  "#!%s\n" % abspath(join(oerpenv.env_path, default_bin, bin_file))
+                    tar_filename = join(root, filename + '.new')
+                    with open(tar_filename, 'w') as df:
+                        df.write(new_first_line)
+                        for l in f:
+                            df.write(l)
+                        df.close()
+                        f.close()
+                        rename(tar_filename, ori_filename)
+                        chmod(ori_filename,
+                              stat.S_IXOTH | stat.S_IXGRP | stat.S_IXUSR |
+                              stat.S_IROTH | stat.S_IRGRP | stat.S_IRUSR |
+                              stat.S_IWUSR)
+                else:
+                    f.close()
+    print "Done"
+
 def main():
     parser = argparse.ArgumentParser()
 
@@ -1235,6 +1288,17 @@ def main():
     parser_activate.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
                              help='Environment configuration file.')
     parser_activate.set_defaults(func=activate,
+                             environment=defaults.python_environment,
+                             config=defaults.config_filename,
+                             parameters=None)
+
+    # The activate command
+    parser_repath = subparsers.add_parser('repath', help=repath.__doc__)
+    parser_repath.add_argument('--environment', '-e', metavar='environment', type=str, nargs='?',
+                             help='Python environment name.')
+    parser_repath.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
+                             help='Environment configuration file.')
+    parser_repath.set_defaults(func=repath,
                              environment=defaults.python_environment,
                              config=defaults.config_filename,
                              parameters=None)
