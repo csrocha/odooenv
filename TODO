@@ -1,4 +1,5 @@
 - Complete this TODO
 
-- enable version option for init.
-- add --force option in server-start sub-command
+[ ] enable version option for init.
+[ ] add --force option in server-start sub-command
+[ ] change git script to dulwich
