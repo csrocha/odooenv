@@ -57,6 +57,15 @@ class OpenERPEnvironment:
             self.config_filename = abspath(config_filename)
             self.root_path = dirname(self.config_filename)
         elif init:
+            path = dirname(config_filename)
+            src_config_filename = config_filename
+            dst_config_filename = join(abspath(path), 'environment.conf')
+
+            if not lexists(path):
+                os.mkdir(abspath(path))
+            urlretrieve(src_config_filename, dst_config_filename)
+            config_filename = dst_config_filename
+
             self.config_filename = abspath(config_filename)
             self.root_path = dirname(self.config_filename)
             if not exists(self.root_path):
@@ -136,7 +145,7 @@ class OpenERPEnvironment:
         """
         path = join(self.root, name)
         if exists(path): return False
-	virtualenv.logger = virtualenv.Logger([(virtualenv.Logger.level_for_integer(2), sys.stdout)])
+        virtualenv.logger = virtualenv.Logger([(virtualenv.Logger.level_for_integer(2), sys.stdout)])
         virtualenv.create_environment(path,site_packages=False)
         if name not in self.environments:
                 self.environments.append(name)

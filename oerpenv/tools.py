@@ -118,7 +118,7 @@ def exists_db(dbname):
     Check if exits a postgresql database.
     """
     try:
-        conn = psycopg2.connect("")
+        conn = psycopg2.connect(database="template1")
         cur = conn.cursor()
         cur.execute("SELECT datname FROM pg_database where datname=%s;", (dbname,))
         return bool(cur.rowcount)

@@ -17,6 +17,8 @@ import datetime
 import subprocess
 import distutils
 import bzrlib
+from urlparse import urlparse
+from urllib import urlretrieve
 
 try:
     import pysvn
@@ -37,7 +39,13 @@ def init(args):
     version = args.version
 
     if path is not None:
-        config_filename = join(abspath(path), config_filename)
+        url = urlparse(config_filename)
+        config_path = url.path
+        config_basename = os.path.basename(url.path)
+
+    else:
+        print "Where do you want I create your virtual environment?"
+        return -1
 
     repository = normpath(abspath(expanduser(expandvars(repository)))) if repository is not None else None
 

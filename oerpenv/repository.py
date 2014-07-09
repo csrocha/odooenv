@@ -121,7 +121,7 @@ class GITRepository(RepositoryBase):
         os.chdir(olddir)
 
     def checkout(self):
-        subprocess.call(['git', 'clone', self.remote_url, self.local_path])
+        subprocess.call(['git', 'clone', '--depth', '1', self.remote_url, self.local_path])
 
     _url_re_ = [
         re.compile('^git@.*$'),
