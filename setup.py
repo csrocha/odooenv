@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 ##############################################################################
 #
-#    OERPEnv, OpenERP Environment Administrator
+#    OdooEnv, Odoo Environment Administrator
 #    Copyright (C) 2011-2015 Coop Trab Moldeo Interactive 
 #    (<http://www.moldeointeractive.com.ar>).
 #
@@ -22,22 +22,22 @@
 
 from setuptools import setup
 
-setup(name='oerpenv',
-      version='1.8.9',
+setup(name='odooenv',
+      version='2.0.0',
       author='Cristian S. Rocha',
       author_email='cristian.rocha@moldeo.coop',
       maintainer='Cristian S. Rocha',
-      maintainer_email='cristian.rocha@moldeo.coop',
-      url='http://business.moldeo.coop/',
-      description='OpenERP Environment Administrator',
+      maintainer_email='csr@moldeo.coop',
+      url='http://biz.moldeo.coop/',
+      description='Odoo Environment Manager',
       long_description="""
-      OERPenv helps you manage virtual python environments with different OpenERP servers.
-      It's make easy to develop, migrate and maintain different versions of OpenERP servers in the same hardware box.
+      OdooEnv helps you manage virtual python environments with different Odoo servers.
+      It's make easy to develop, migrate and maintain different versions of Odoo servers in the same hardware box.
 
-      This package installs command 'oerpenv' with these sub-commands:
+      This package installs command 'odooenv' with these sub-commands:
 
-      $ oerpenv -h
-      usage: oerpenv [-h]
+      $ odooenv -h
+      usage: odooenv [-h]
                      
                      {restore,web-stop,show,server-start,activate,pip,shell-db,web-start,create,add,init,server-stop,create-db,test,search-entity,init-db,enable,csv2xml,update,disable,search-object,list-installables,dummy,drop-db,setup,list-addons,client,list-db,install,snapshot}
                      ...
@@ -46,7 +46,7 @@ setup(name='oerpenv',
         -h, --help            show this help message and exit
 
       subcommands:
-        The OpenERP environment administrator help you to administrate OpenERP
+        The Odoo environment administrator help you to administrate Odoo
         environments. You can use the following commands.
 
         {restore,web-stop,show,server-start,activate,pip,shell-db,web-start,create,add,init,server-stop,create-db,test,search-entity,init-db,enable,csv2xml,update,disable,search-object,list-installables,dummy,drop-db,setup,list-addons,client,list-db,install,snapshot}
@@ -81,7 +81,7 @@ setup(name='oerpenv',
           shell-db            Execute a shell for sql commands over the database.
           create-db           Create a void database.
           drop-db             Remove a database.
-          init-db             Prepare a minimalistic OpenERP database.
+          init-db             Prepare a minimalistic Odoo database.
           snapshot            Generate a database snapshot.
           restore             Restore a database snapshot.
           pip                 Install Python packages in the virtual environment.
@@ -99,8 +99,8 @@ setup(name='oerpenv',
           'Programming Language :: Python :: 2.6',
           'Topic :: Software Development :: Build Tools',
       ],
-      scripts=['scripts/oerpenv'],
-      packages=['oerpenv'],
+      scripts=['scripts/odooenv'],
+      packages=['odooenv'],
       test_suite='tests',
       install_requires=['virtualenv','psycopg2','argparse','bzr'],
       dependency_links=['http://pysvn.barrys-emacs.org/source_kits/pysvn-1.7.5.tar.gz'],

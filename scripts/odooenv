@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# OpenERP environment adminitrator
+# Odoo environment adminitrator
 #
 
 import sys, os, signal, ConfigParser
@@ -50,7 +50,7 @@ def init(args):
     repository = normpath(abspath(expanduser(expandvars(repository)))) if repository is not None else None
 
     try:
-        oerpenv = OpenERPEnvironment(config_filename=config_filename, sources=repository, init=True, version=version)
+        oerpenv = OdooEnvironment(config_filename=config_filename, sources=repository, init=True, version=version)
     except RuntimeError, s:
         print s
         return -1
@@ -75,7 +75,7 @@ def setup(args):
     """
     Write default files to environment. 
     """
-    oerpenv = OpenERPEnvironment(config_filename=args.config)
+    oerpenv = OdooEnvironment(config_filename=args.config)
 
     for filename in defaults.default_files:
         with open(filename % { 'root': oerpenv.env_path }, 'w') as file:
@@ -85,7 +85,7 @@ def update(args):
     """
     Update sources. 
     """
-    oerpenv = OpenERPEnvironment(config_filename=args.config)
+    oerpenv = OdooEnvironment(config_filename=args.config)
 
     try:
         for operation, local_branch_url, remote_branch_url in oerpenv.update(iterate=True, repositories=args.repositories):
@@ -114,7 +114,7 @@ def create(args):
     """
     Create a new python environment.
     """
-    oerpenv = OpenERPEnvironment(config_filename=args.config)
+    oerpenv = OdooEnvironment(config_filename=args.config)
 
     print "Creating environment %s" % args.name[0]
 
@@ -124,7 +124,7 @@ def add(args):
     """
     Add a branch with to the sources list.
     """
-    oerpenv = OpenERPEnvironment(config_filename=args.config)
+    oerpenv = OdooEnvironment(config_filename=args.config)
     oerpenv.load()
 
     oerpenv.add_repository(args.name[0], args.url[0])
@@ -135,7 +135,7 @@ def install(args):
     """
     Install all software in the default environment of in the declared.
     """
-    oerpenv = OpenERPEnvironment(config_filename=args.config)
+    oerpenv = OdooEnvironment(config_filename=args.config)
     oerpenv.set_python_environment(args.environment)
 
     print "Checking for availables applications."
@@ -157,7 +157,7 @@ def install(args):
         else:
             print "ERROR: Can't confirm the application or module is installed."
             print "Please, execute 'oerpenv test base' to check if server is working"
-            print "To check if client is working execute 'openerp client'"
+            print "To check if client is working execute 'odoo client'"
             print "If not working, recreate the python environment and try again"
             print
 
@@ -165,7 +165,7 @@ def list_installables(args):
     """
     List all availables applications in sources.
     """
-    oerpenv = OpenERPEnvironment(config_filename=args.config)
+    oerpenv = OdooEnvironment(config_filename=args.config)
     oerpenv.set_python_environment(args.environment)
 
     for application in oerpenv.installables:
@@ -178,7 +178,7 @@ def list_addons(args):
     """
     List availables addons in sources. Show all addons if not filter expression declared.
     """
-    oerpenv = OpenERPEnvironment(config_filename=args.config)
+    oerpenv = OdooEnvironment(config_filename=args.config)
     oerpenv.set_python_environment(args.environment)
 
     for addon in oerpenv.addons(args.filter_string):
@@ -189,7 +189,7 @@ def enable_addon(args):
     """
     Enabel addons on the environment. Create a symbolic link.
     """
-    oerpenv = OpenERPEnvironment(config_filename=args.config)
+    oerpenv = OdooEnvironment(config_filename=args.config)
     oerpenv.set_python_environment(args.environment)
 
     path_map = oerpenv.get_addonsourcepath()
@@ -264,7 +264,7 @@ def disable_addon(args):
     """
     Disable addons on the environment. Remove a symbolic link.
     """
-    oerpenv = OpenERPEnvironment(config_filename=args.config)
+    oerpenv = OdooEnvironment(config_filename=args.config)
     oerpenv.set_python_environment(args.environment)
 
     addons_path = oerpenv.get_addonsourcepath()['server']
@@ -285,7 +285,7 @@ def create_dummy_addon(args):
     """
     Create a dummy addon. Useful to create new addon.
     """
-    oerpenv = OpenERPEnvironment(config_filename=args.config)
+    oerpenv = OdooEnvironment(config_filename=args.config)
     oerpenv.set_python_environment(args.environment)
 
     source_path = join(oerpenv.sources_path, args.addon[0])
@@ -302,15 +302,15 @@ def create_dummy_addon(args):
     # Create __init__.py files
     for subdir in ['.', 'report', 'wizard']:
         with open(join(source_path, subdir, '__init__.py'), 'w') as file:
-            file.write(defaults.openerp_header)
+            file.write(defaults.odoo_header)
             file.write(defaults.init_body)
-            file.write(defaults.openerp_footer)
+            file.write(defaults.odoo_footer)
 
     with open(join(source_path, oerpenv.desc_filename), 'w') as file:
         pp = pprint.PrettyPrinter(indent=4, stream=file)
-        file.write(defaults.openerp_header)
+        file.write(defaults.odoo_header)
         pp.pprint(defaults.addon_description(args.addon[0]))
-        file.write(defaults.openerp_footer)
+        file.write(defaults.odoo_footer)
 
     oerpenv.save()
 
@@ -318,7 +318,7 @@ def test_addon(args):
     """
     Execute the server in test mode for this addon.
     """
-    oerpenv = OpenERPEnvironment(config_filename=args.config)
+    oerpenv = OdooEnvironment(config_filename=args.config)
     oerpenv.set_python_environment(args.environment)
     addons_path = oerpenv.get_addonsourcepath()['server']
 
@@ -359,8 +359,8 @@ def test_addon(args):
             options += ['--log-level=test']
         if args.commit:
             options += ['--test-commit']
-        print "Executing:\n openerp-server", " ".join(options + initarg + ['-d', dbname])
-        oerpenv.execute('openerp-server', initarg + ['-d', dbname] + options)
+        print "Executing:\n odoo-server", " ".join(options + initarg + ['-d', dbname])
+        oerpenv.execute('odoo-server', initarg + ['-d', dbname] + options)
     except KeyboardInterrupt:
         print "KeyboardInterrupt event."
         exit(-1)
@@ -386,14 +386,14 @@ def start_client(args):
     """
     Execute the server in test mode for this addon.
     """
-    oerpenv = OpenERPEnvironment(config_filename=args.config)
+    oerpenv = OdooEnvironment(config_filename=args.config)
     oerpenv.set_python_environment(args.environment)
 
     client_config_filename = join(oerpenv.env_path, 'etc', oerpenv.client_config_filename)
 
     print "Running client in environment %s" % args.environment
     try:
-        oerpenv.execute('openerp-client', ['-c', client_config_filename])
+        oerpenv.execute('odoo-client', ['-c', client_config_filename])
     except KeyboardInterrupt:
         print "KeyboardInterrupt event."
 
@@ -401,7 +401,7 @@ def server_start(args):
     """
     Start the server.
     """
-    oerpenv = OpenERPEnvironment(config_filename=args.config)
+    oerpenv = OdooEnvironment(config_filename=args.config)
     oerpenv.set_python_environment(args.environment)
 
     snapshot = args.snapshot if args.snapshot is not None else oerpenv.snapshot
@@ -424,7 +424,7 @@ def server_start(args):
 
     if debug:
         options += [ '--debug' ]
-        #options += [ '--log-level=debug_rpc', '--logfile=%s/openerp-server.log' % oerpenv.root_path ]
+        #options += [ '--log-level=debug_rpc', '--logfile=%s/odoo-server.log' % oerpenv.root_path ]
 
     if production:
         options += [ '--without-demo=all','--test-disable' ]
@@ -456,7 +456,7 @@ def server_start(args):
             print "Execute 'oerpenv stop' to stop the server and remove this file."
             return -1
         print "Running with options: %s" % ' '.join(options)
-        pid = oerpenv.execute('openerp-server', options, no_wait=not debug)
+        pid = oerpenv.execute('odoo-server', options, no_wait=not debug)
         if not debug and pid is not None:
             f = open(pidfilename, 'w')
             f.write("%i" % pid)
@@ -480,7 +480,7 @@ def server_stop(args):
     """
     Stop the server.
     """
-    oerpenv = OpenERPEnvironment(config_filename=args.config)
+    oerpenv = OdooEnvironment(config_filename=args.config)
     oerpenv.set_python_environment(args.environment)
 
     pidfilename = join(oerpenv.root_path, '.server_pid')
@@ -503,7 +503,7 @@ def web_start(args):
     """
     Start the web client.
     """
-    oerpenv = OpenERPEnvironment(config_filename=args.config)
+    oerpenv = OdooEnvironment(config_filename=args.config)
     oerpenv.set_python_environment(args.environment)
 
     debug =  args.debug or oerpenv.debug
@@ -524,7 +524,7 @@ def web_start(args):
             print "Execute 'oerpenv web-stop' to stop the web client and remove this file."
             return -1
         print "Running with options: %s" % ' '.join(options)
-        pid = oerpenv.execute('openerp-web', options, no_wait=not debug, check_for_termination=True)
+        pid = oerpenv.execute('odoo-web', options, no_wait=not debug, check_for_termination=True)
         if not debug and pid is not None:
             f = open(pidfilename, 'w')
             f.write("%i" % pid)
@@ -546,7 +546,7 @@ def web_stop(args):
     """
     Stop the web client.
     """
-    oerpenv = OpenERPEnvironment(config_filename=args.config)
+    oerpenv = OdooEnvironment(config_filename=args.config)
     oerpenv.set_python_environment(args.environment)
 
     pidfilename = join(oerpenv.root_path, '.web_pid')
@@ -570,7 +570,7 @@ def search_object(args):
     """
     Search addons with this object.
     """
-    oerpenv = OpenERPEnvironment(config_filename=args.config)
+    oerpenv = OdooEnvironment(config_filename=args.config)
     oerpenv.set_python_environment(args.environment)
 
     print "Definition:"
@@ -585,7 +585,7 @@ def search_entity(args):
     """
     Search in xml some declared entity with id
     """
-    oerpenv = OpenERPEnvironment(config_filename=args.config)
+    oerpenv = OdooEnvironment(config_filename=args.config)
     oerpenv.set_python_environment(args.environment)
  
     for addon in oerpenv.addons(entity_filter=args.entity[0]):
@@ -596,7 +596,7 @@ def show_addon(args):
     """
     Show addon information.
     """
-    oerpenv = OpenERPEnvironment(config_filename=args.config)
+    oerpenv = OdooEnvironment(config_filename=args.config)
     oerpenv.set_python_environment(args.environment)
 
     addons = dict([ (addon.token, addon) for addon in oerpenv.addons(token_filter=args.objects[0]) ])
@@ -659,13 +659,13 @@ def drop_db(args):
 
 def init_db(args):
     """
-    Prepare a minimalistic OpenERP database.
+    Prepare a minimalistic Odoo database.
     """
-    oerpenv = OpenERPEnvironment(config_filename=args.config)
+    oerpenv = OdooEnvironment(config_filename=args.config)
     oerpenv.set_python_environment(args.environment)
 
     try:
-        oerpenv.execute('openerp-server', ['--init', 'base', '-d', args.database[0], '--stop-after-init'])
+        oerpenv.execute('odoo-server', ['--init', 'base', '-d', args.database[0], '--stop-after-init'])
     except KeyboardInterrupt:
         print "KeyboardInterrupt event."
     except OSError, m:
@@ -692,7 +692,7 @@ def snapshot(args):
     """
     Generate a database snapshot.
     """
-    oerpenv = OpenERPEnvironment(config_filename=args.config)
+    oerpenv = OdooEnvironment(config_filename=args.config)
     snapshots = oerpenv.snapshots_path
 
     dbname = args.database[0]
@@ -708,7 +708,7 @@ def restore(args):
     """
     Restore a database snapshot.
     """
-    oerpenv = OpenERPEnvironment(config_filename=args.config)
+    oerpenv = OdooEnvironment(config_filename=args.config)
     snapshots = oerpenv.snapshots_path
 
     dbname = args.database[0]
@@ -743,7 +743,7 @@ def extradite(args):
     """
     Copy database from remote/local server to local/remote server.
     """
-    oerpenv = OpenERPEnvironment(config_filename=args.config)
+    oerpenv = OdooEnvironment(config_filename=args.config)
     snapshots = oerpenv.snapshots_path
 
     operation = args.operation.pop()
@@ -778,7 +778,7 @@ def pip(args):
     """
     Install Python packages in the virtual environment.
     """
-    oerpenv = OpenERPEnvironment(config_filename=args.config)
+    oerpenv = OdooEnvironment(config_filename=args.config)
     oerpenv.set_python_environment(args.environment)
 
     command =  args.command[0] if args.command[0] in [
@@ -822,7 +822,7 @@ def csv2xml(args):
 
         templateDef = """\
 <?xml version="1.0" encoding="UTF-8"?>
-<openerp>
+<odoo>
     <data noupdate="True">
         #for $id, $record in $records
         <record model='$model' id='$id'>
@@ -836,7 +836,7 @@ def csv2xml(args):
         </record> 
         #end for
     </data>
-</openerp>
+</odoo>
         """
         reader = csv.DictReader(IN)
         if id_template is not None:
@@ -863,7 +863,7 @@ def activate(args):
     """
     Active bash instance in virtual environment.
     """
-    oerpenv = OpenERPEnvironment(config_filename=args.config)
+    oerpenv = OdooEnvironment(config_filename=args.config)
     oerpenv.set_python_environment(args.environment)
 
     print "Activating"
@@ -875,7 +875,7 @@ def repath(args):
     """
     Change path to enviroment scripts.
     """
-    oerpenv = OpenERPEnvironment(config_filename=args.config)
+    oerpenv = OdooEnvironment(config_filename=args.config)
     oerpenv.set_python_environment(args.environment)
 
     binpath_re = re.compile('^#!(.*)(bin/)(.*)$')
@@ -927,7 +927,7 @@ def main():
     parser = argparse.ArgumentParser()
 
     subparsers = parser.add_subparsers(help='commands',
-                                       description='The OpenERP environment administrator help you to administrate OpenERP environments. You can use the following commands.')
+                                       description='The Odoo environment administrator help you to administrate Odoo environments. You can use the following commands.')
 
     # The init command
     parser_init = subparsers.add_parser('init', help=init.__doc__)
@@ -939,7 +939,7 @@ def main():
     parser_init.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
                              help='Environment configuration file.')
     parser_init.add_argument('--version', '-v', metavar='version', type=str, nargs='?',
-                             help='OpenERP version to setup')
+                             help='Odoo version to setup')
     parser_init.set_defaults(func=init,
                              config=defaults.config_filename,
                              version=defaults.version)
@@ -1115,7 +1115,7 @@ def main():
                              help='Install modules')
     parser_server_start.add_argument('--language', '-l', metavar='LANG', type=str, nargs='?',
                              help='Default Language')
-    parser_server_start.add_argument('extracommands', nargs='*', help='Commands direct to openerp-server')
+    parser_server_start.add_argument('extracommands', nargs='*', help='Commands direct to odoo-server')
     parser_server_start.set_defaults(func=server_start,
                              environment=defaults.python_environment,
                              config=defaults.config_filename,
@@ -1135,7 +1135,7 @@ def main():
                              help='Start web client in debug mode. Stop until an exception.')
     parser_web_start.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
                              help='Environment configuration file.')
-    parser_web_start.add_argument('extracommands', nargs='*', help='Commands direct to openerp-web')
+    parser_web_start.add_argument('extracommands', nargs='*', help='Commands direct to odoo-web')
     parser_web_start.set_defaults(func=web_start,
                              environment=defaults.python_environment,
                              config=defaults.config_filename,

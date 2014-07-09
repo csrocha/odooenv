@@ -1,30 +1,31 @@
-oerpenv - Tool to administrate OpenERP environments
+odooenv - Tool to administrate Odoo environments
 Cristian S. Rocha (c) 2011-2015
 cristian.rocha@moldeointeractive.com.ar
 
 This code is distributed under the MIT license.
 
-Requirements:
--------------
+# Instroduction
+
+OdooEnv is a python based environment manager. It's come from OERPenv which exists in "https://launchpad.net/oerpenv". But when renamed OpenERP to Odoo, whe change the name and repository plase.
+
+# Requirements
 
 You must have installed pysvn and bzrlib. In case you are working in a Debian or Ubuntu environment, you can install both packages with:
 
  aptitude install python-pysvn
  aptitude install python-bzrlib
 
-Installation:
--------------
+# Installation:
 
 After installing the needed dependencies, you have to execute:
 
  python setup.py install
 
-Usage:
-------
+# Usage:
 
-The oerpenv command line is available with the following sub-commands:
+The odooenv command line is available with the following sub-commands:
 
-	usage: oerpenv [-h]
+	usage: odooenv [-h]
 		       
 		       {init,update,create,add,install,list-installables,list-addons,enable,disable,dummy,test,client,search,show}
 		       ...
@@ -33,7 +34,7 @@ The oerpenv command line is available with the following sub-commands:
 	  -h, --help            show this help message and exit
 
 	subcommands:
-	  The OpenERP environment administrator help you to administrate OpenERP
+	  The Odoo environment administrator help you to administrate Odoo
 	  environments. You can use the following commands.
 
 	  {init,update,create,add,install,list-installables,list-addons,enable,disable,dummy,test,client,search,show}
@@ -61,50 +62,46 @@ The oerpenv command line is available with the following sub-commands:
 
 All configurations are stored in the environment.conf file. You can setup it by hand or by using the available commands listed above.
 
-Testing a module:
------------------
+# Testing a module:
 
-To create a simple OpenERP instance you need to run the following commands in your work directory.
+To create a simple Odoo instance you need to run the following commands in your work directory.
 
-$ oerpenv init openerp_env
-$ cd openerp_env
-$ oerpenv update
-$ oerpenv install
-$ oerpenv list-addons
+$ odooenv init odoo_env
+$ cd odoo_env
+$ odooenv update
+$ odooenv install
+$ odooenv list-addons
 
 Search for an addon to test, like hr_attendance
 
-$ oerpenv enable hr_attendance
-$ oerpenv test hr_attendance
+$ odooenv enable hr_attendance
+$ odooenv test hr_attendance
 
 In case you want to run the server, you only need to execute:
 
-$ oerpenv server-start --debug
+$ odooenv server-start --debug
 
-The server should be running and you can start working with OpenERP by launching your browser and pointing it to the appropiate port (commonly 8069)
+The server should be running and you can start working with Odoo by launching your browser and pointing it to the appropiate port (commonly 8069)
 
-Develop a new addon not from zero:
-----------------------------------
+# Develop a new addon not from zero:
 
 If you need test more than one module, or you want develop a new addon you can create a dummy addon in the following way:
 
-$ oerpenv dummy hr_test
+$ odooenv dummy hr_test
 
-In the output you can find the source path. There you can found the __openerp__.py file. Append the modules you want to test in the 'depends' field, in this example will use hr_attendace and hr_contract. If you done all right you can execute the follwing command without errors:
+In the output you can find the source path. There you can found the __odoo__.py file. Append the modules you want to test in the 'depends' field, in this example will use hr_attendace and hr_contract. If you done all right you can execute the follwing command without errors:
 
-$ oerpenv enable hr_test
+$ odooenv enable hr_test
 
 Then you can execute the server in mode test again, for the new module.
 
-$ oerpenv test hr_test
+$ odooenv test hr_test
 
-Searching for an object in source code:
---------------------------------------
+# Searching for an object in source code:
 
 To search the source code of a code you can use the command 'search'.
 
-Display addon information:
--------------------------
+# Display addon information:
 
 To show addon information, like description, declarated objects and path to the source you can use the command 'show'.
 

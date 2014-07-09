@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 ##############################################################################
 #
-#    OERPEnv, OpenERP Environment Administrator
+#    OdooEnv, Odoo Environment Administrator
 #    Copyright (C) 2011-2015 Coop Trab Moldeo Interactive 
 #    (<http://www.moldeointeractive.com.ar>).
 #
@@ -43,10 +43,10 @@ class NoVersionAvailableError(RuntimeError):
         self.version = version
         self.message = "No version available (%s)" % version
 
-class OpenERPEnvironment:
+class OdooEnvironment:
     def __init__(self, sources=None, config_filename=defaults.config_filename, init=False, version='6.0'):
         """
-        Create an instance of OpenERPEnvironment class.
+        Create an instance of OdooEnvironment class.
 
         Arguments:
         config_filename -- Full path to the configuration file.

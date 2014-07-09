@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 ##############################################################################
 #
-#    OERPEnv, OpenERP Environment Administrator
+#    OdooEnv, Odoo Environment Administrator
 #    Copyright (C) 2011-2015 Coop Trab Moldeo Interactive 
 #    (<http://www.moldeointeractive.com.ar>).
 #
