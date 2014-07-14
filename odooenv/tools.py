@@ -24,10 +24,70 @@ from os.path import join
 import sys, os, ConfigParser
 import subprocess
 import psycopg2
+from yaml import load, safe_load
+try:
+    from yaml import CLoader as Loader, CDumper as Dumper
+except ImportError:
+    from yaml import Loader, Dumper
+
+# convert a dictionary to an structure class
+class Struct(object):
+    def __init__(self, adict, rdict={}):
+        """Convert a dictionary to a class, and format each string
+        item using the rdict parameter.
+
+        @param :adict Dictionary
+        @rdict :rdict Replacement dictionary.
+        """
+        self.__dict__.update(adict)
+        for k, v in adict.items():
+            if isinstance(v, dict):
+                self.__dict__[k] = Struct(v, rdict)
+            if isinstance(v, str):
+                self.__dict__[k] = v.format(**rdict)
+
+    def as_dict(self):
+        """Return a dict from this struct"""
+        r = {}
+        for k in self.__dict__:
+            v = self.__dict__[k]
+            r[k] = v.as_dict() if isinstance(v, Struct) else v
+        return r
+
+    def take(self, keys):
+        r = { k: [] for k in keys }
+        for k in self.__dict__:
+            v = self.__dict__[k]
+            if k in keys:
+                r[k].append(v)
+            elif isinstance(v, Struct):
+                rr = v.take(keys)
+                for k in rr:
+                    r[k].extend(rr[k])
+        return r
+
+    def has(self, key):
+        return key in self.__dict__
+
+    def get(self, key, default=None):
+        return self.__dict__.get(key, default)
+    
+    def __iter__(self):
+        for k in self.__dict__:
+            yield (k, self.__dict__[k])
 
 # Use 1 to postgresql v8.x
 # Use 3 to postgresql v9.x
 default_isolation_level=3
+
+def yaml_load(f):
+    """
+    Load YAML file.
+    """
+    if not isinstance(f, file) or not isinstance:
+        f = open(f)
+    return Struct(load(f, Loader=Loader))
+
 
 class PostgresNotRunningError(RuntimeError):
     def __init__(self):
@@ -81,6 +141,12 @@ def save_configuration(options, filename):
         return True
 
 def load_configuration(filename, defaults=None):
+        with open(filename, 'r') as f:
+            config = Struct(safe_load(f), defaults)
+            return config
+        return False
+
+def load_configuration_old(filename, defaults=None):
         """
         Return a dictonary from a ConfigParse format file.
         """
