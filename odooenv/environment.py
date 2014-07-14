@@ -24,6 +24,8 @@ import re
 import virtualenv
 import sys
 import time
+import logging
+import logging.config
 from os import makedirs, walk, symlink, mkdir
 from os.path import abspath, join, exists, lexists, dirname, basename
 from installable import Installable
@@ -69,6 +71,11 @@ class OdooEnvironment:
         Load configuration file.
         """
         self._config = tools.load_configuration(self.config_filename, defaults={'root': self.root_path})
+        if self._config.has('logging'):
+            logging.config.dictConfig(self._config.logging.as_dict()) 
+            self._logger = logging.getLogger('odooenv')
+        else:
+            self._logger = logging
 
     def save(self, init=False):
         """
@@ -121,7 +128,7 @@ class OdooEnvironment:
     def installables(self):
         bin_path = join(self.root_path, 'bin')
         src_path = self._config.sources.dir
-        r = [ Installable(r.method, join(src_path, n), bin_path) for n, r in self._config.sources.repos if r.has('method') ]
+        r = [ Installable(r.method, join(src_path, n), bin_path, logger=self._logger) for n, r in self._config.sources.repos if r.has('method') ]
         return r
 
     @property
@@ -254,7 +261,7 @@ class OdooEnvironment:
         Execute a command in the python environment defined in set_python_environment()
         """
         if no_wait:
-            P = subprocess.Popen([join(self.env_path,'bin',command)] + args)
+            P = subprocess.Popen([join(self.root,'bin',command)] + args)
             if check_for_termination:
                 time.sleep(5)
                 if not P.poll() is None: return None

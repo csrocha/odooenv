@@ -7,7 +7,7 @@ import sys, os, signal, ConfigParser
 import argparse
 import re
 from os.path import abspath, lexists, join, basename, dirname, normpath, expanduser, expandvars, relpath, islink
-from os import remove, rename, readlink, symlink, chmod
+from os import remove, rename, readlink, symlink, chmod, makedirs, kill
 import stat
 from glob import iglob
 import signal
@@ -17,6 +17,7 @@ import datetime
 import subprocess
 import distutils
 import bzrlib
+import logging
 from urlparse import urlparse
 from urllib import urlretrieve
 from odooenv import *
@@ -285,9 +286,9 @@ def create_dummy_addon(args):
     print "Creating dummy addon on %s" % source_path
 
     # Create addon path structure
-    mkdir(source_path)
+    makedirs(source_path)
     for subdir in ['i18n', 'process', 'report', 'security', 'test', 'wizard']:
-        mkdir(join(source_path, subdir))
+        makedirs(join(source_path, subdir))
 
     # Create __init__.py files
     for subdir in ['.', 'report', 'wizard']:
@@ -391,8 +392,7 @@ def server_start(args):
     """
     Start the server.
     """
-    oerpenv = OdooEnvironment(config_filename=args.config)
-    oerpenv.set_python_environment(args.environment)
+    oerpenv = OdooEnvironment()
 
     snapshot = args.snapshot if args.snapshot is not None else oerpenv.snapshot
     database =  args.database if args.database is not None else oerpenv.database
@@ -439,23 +439,22 @@ def server_start(args):
         if not tools.recover_snapshot(database, snapshot, oerpenv):
             print "ERROR: Cant recover snapshot %s." % snapshot
             return -1
+
+    # Setup pid file
+    pid_filename = join(oerpenv.root_path, 'var', 'server.pid')
+    if not lexists(dirname(pid_filename)):
+        makedirs(dirname(pid_filename))
+    options += ['--pidfile', pid_filename]
+
     try:
-        pidfilename = join(oerpenv.root_path, '.server_pid')
-        if lexists(pidfilename) and (not force_start):
+        if lexists(pid_filename):
+            pid = int(''.join(open(pid_filename).readlines()))
+            kill(pid, 0)
             print "A server is running or .server_pid has not been deleted at the end of the server."
             print "Execute 'oerpenv stop' to stop the server and remove this file."
             return -1
         print "Running with options: %s" % ' '.join(options)
-        pid = oerpenv.execute('odoo-server', options, no_wait=not debug)
-        if not debug and pid is not None:
-            f = open(pidfilename, 'w')
-            f.write("%i" % pid)
-            f.close()
-        if pid is not None:
-            #os.kill(pid, signal.SIGINT)
-            pass
-        else:
-            print "Process terminated unexpectedly"
+        oerpenv.execute('odoo.py', options, no_wait=not debug)
     except KeyboardInterrupt:
         print "KeyboardInterrupt event."
     except OSError, m:
@@ -470,12 +469,10 @@ def server_stop(args):
     """
     Stop the server.
     """
-    oerpenv = OdooEnvironment(config_filename=args.config)
-    oerpenv.set_python_environment(args.environment)
-
-    pidfilename = join(oerpenv.root_path, '.server_pid')
+    oerpenv = OdooEnvironment()
+    pid_filename = join(oerpenv.root_path, 'var', 'server.pid')
     try:
-        with open(pidfilename, 'r') as f:
+        with open(pid_filename, 'r') as f:
             pid = int(f.readline())
         os.kill(pid, signal.SIGINT)
     except IOError, m:
@@ -486,7 +483,7 @@ def server_stop(args):
         print "No server running."
         print "ERROR: %s" % m
         return -1
-    os.remove(pidfilename)
+    os.remove(pid_filename)
     return 0
 
 def web_start(args):

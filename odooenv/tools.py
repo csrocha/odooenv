@@ -24,6 +24,8 @@ from os.path import join
 import sys, os, ConfigParser
 import subprocess
 import psycopg2
+import select
+from logging import DEBUG, ERROR
 from yaml import load, safe_load
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
@@ -191,5 +193,35 @@ def exists_db(dbname):
     except:
         raise PostgresNotRunningError
 
+def call(popenargs, logger, stdout_log_level=DEBUG, stderr_log_level=ERROR, **kwargs):
+    """
+    Variant of subprocess.call that accepts a logger instead of stdout/stderr,
+    and logs stdout messages via logger.debug and stderr messages via
+    logger.error.
+    """
+    logger.info("Running: " + ' '.join(popenargs))
+    child = subprocess.Popen(popenargs, stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE, **kwargs)
+ 
+    log_level = {child.stdout: stdout_log_level,
+                 child.stderr: stderr_log_level}
+    output    = {child.stdout: [],
+                 child.stderr: []}
+ 
+    def check_io():
+        ready_to_read = select.select([child.stdout, child.stderr], [], [], 1000)[0]
+        for io in ready_to_read:
+            line = io.readline()
+            if line:
+                output[io].append(line[:-1])
+                logger.log(log_level[io], line[:-1])
+ 
+    # keep checking stdout/stderr until the child exits
+    while child.poll() is None:
+        check_io()
+ 
+    check_io()  # check again to catch anything after the process exits
+ 
+    return output[child.stdout], output[child.stderr], child.wait()
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

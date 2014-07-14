@@ -26,9 +26,11 @@ import os
 import re
 import subprocess
 import StringIO
+import logging
+from tools import call
 
 class Installable:
-    def __init__(self, method, url, bin_path):
+    def __init__(self, method, url, bin_path, logger=logging):
         """
         Init an addon class information 
         """
@@ -48,19 +50,13 @@ class Installable:
         self._name = None
         self._fullname = None
         self._description = None
+        self._logger=logger
 
-    def run_setup(self, command, wait=True):
+    def run_setup(self, command):
         bin_path = self._bin_path
         url = self._url
         command = [ join(bin_path, 'python'), join(url,'setup.py'), command ]
-        P = subprocess.Popen(command,
-                             cwd = url, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        out = P.stdout.readlines()
-        err = P.stderr.readlines()
-        if wait:
-            r = P.wait()
-            return out, err, r
-        return out, err, r, P.wait
+        return call(command, self._logger, cwd=url)
 
     def run_pip(self, command):
         bin_path = self._bin_path
