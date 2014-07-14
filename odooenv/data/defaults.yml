@@ -1,0 +1,8 @@
+config:
+    origin: 'https://gist.githubusercontent.com/csrocha/7203820/raw/environment.yml'
+    filename: 'environment.yml'
+environment:
+    default: default
+    directories: [ sources, snapshots, reports, scripts ]
+database:
+    user: openerp
