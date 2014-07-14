@@ -373,21 +373,6 @@ def test_addon(args):
 
     print "TEST FINISHED."
 
-def start_client(args):
-    """
-    Execute the server in test mode for this addon.
-    """
-    oerpenv = OdooEnvironment(config_filename=args.config)
-    oerpenv.set_python_environment(args.environment)
-
-    client_config_filename = join(oerpenv.env_path, 'etc', oerpenv.client_config_filename)
-
-    print "Running client in environment %s" % args.environment
-    try:
-        oerpenv.execute('odoo-client', ['-c', client_config_filename])
-    except KeyboardInterrupt:
-        print "KeyboardInterrupt event."
-
 def server_start(args):
     """
     Start the server.
@@ -485,73 +470,6 @@ def server_stop(args):
         return -1
     os.remove(pid_filename)
     return 0
-
-def web_start(args):
-    """
-    Start the web client.
-    """
-    oerpenv = OdooEnvironment(config_filename=args.config)
-    oerpenv.set_python_environment(args.environment)
-
-    debug =  args.debug or oerpenv.debug
-    extracommands =  args.extracommands if args.extracommands is not None else oerpenv.extracommands
-
-    options = []
-
-    if extracommands is not None:
-        options += extracommands
-
-    if oerpenv.web_config_filename:
-        options += [ '--config', oerpenv.web_config_filename ]
-
-    try:
-        pidfilename = join(oerpenv.root_path, '.web_pid')
-        if lexists(pidfilename):
-            print "A web client is running or .web_pid has not been deleted at the end of the web client."
-            print "Execute 'oerpenv web-stop' to stop the web client and remove this file."
-            return -1
-        print "Running with options: %s" % ' '.join(options)
-        pid = oerpenv.execute('odoo-web', options, no_wait=not debug, check_for_termination=True)
-        if not debug and pid is not None:
-            f = open(pidfilename, 'w')
-            f.write("%i" % pid)
-            f.close()
-        if pid is not None:
-            pass
-            #os.kill(pid, signal.SIGINT)
-        else:
-            print "Process terminated unexpectedly"
-    except KeyboardInterrupt:
-        print "KeyboardInterrupt event."
-    except OSError, m:
-        print "Environment Error."
-        print "ERROR: %s" % m
-        print "If you move the environment please rebuild default python environment and check directories in environment.yml file."
-        print "If all ok, be sure you executed 'oerpenv install' before run this command."
-
-def web_stop(args):
-    """
-    Stop the web client.
-    """
-    oerpenv = OdooEnvironment(config_filename=args.config)
-    oerpenv.set_python_environment(args.environment)
-
-    pidfilename = join(oerpenv.root_path, '.web_pid')
-    try:
-        with open(pidfilename, 'r') as f:
-            pid = int(f.readline())
-        os.kill(pid, signal.SIGINT)
-    except IOError, m:
-        print "No web client information."
-        print "ERROR: %s" % m
-        return -1
-    except OSError, m:
-        print "No web client running."
-        print "ERROR: %s" % m
-        return -1
-    os.remove(pidfilename)
-    return 0
-
 
 def search_object(args):
     """
@@ -1063,16 +981,6 @@ def main():
                              config=defaults.config.filename,
                              )
 
-    # The client command
-    parser_start_client = subparsers.add_parser('client', help=start_client.__doc__)
-    parser_start_client.add_argument('--environment', '-e', metavar='environment', type=str, nargs='?',
-                             help='Python environment name.')
-    parser_start_client.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
-                             help='Environment configuration file.')
-    parser_start_client.set_defaults(func=start_client,
-                             environment=defaults.environment.default,
-                             config=defaults.config.filename)
-
     # The server-start subcommand
     parser_server_start = subparsers.add_parser('server-start', help=server_start.__doc__)
     parser_server_start.add_argument('--database', '-D',  metavar='database', type=str, nargs='?',
@@ -1106,24 +1014,6 @@ def main():
     parser_server_stop.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
                              help='Environment configuration file.')
     parser_server_stop.set_defaults(func=server_stop,
-                             environment=defaults.environment.default,
-                             config=defaults.config.filename)
-
-    # The web-start subcommand
-    parser_web_start = subparsers.add_parser('web-start', help=web_start.__doc__)
-    parser_web_start.add_argument('--debug', '-d', action='store_true',
-                             help='Start web client in debug mode. Stop until an exception.')
-    parser_web_start.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
-                             help='Environment configuration file.')
-    parser_web_start.add_argument('extracommands', nargs='*', help='Commands direct to odoo-web')
-    parser_web_start.set_defaults(func=web_start,
-                             environment=defaults.environment.default,
-                             config=defaults.config.filename,
-                             extracommands=None)
-
-    # The stop subcommand
-    parser_server_stop = subparsers.add_parser('web-stop', help=web_stop.__doc__)
-    parser_server_stop.set_defaults(func=web_stop,
                              environment=defaults.environment.default,
                              config=defaults.config.filename)
 
