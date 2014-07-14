@@ -24,14 +24,18 @@ import re
 import virtualenv
 import sys
 import time
-from os import makedirs, walk, symlink
-from os.path import abspath, join, exists, dirname, basename
+from os import makedirs, walk, symlink, mkdir
+from os.path import abspath, join, exists, lexists, dirname, basename
 from installable import Installable
-from oerpenv import tools, defaults
+from odooenv import tools
+from odooenv.defaults import defaults
 from virtualenv import subprocess
 from addon import Addon
 from repository import Repository
 from pwd import getpwnam
+from urllib import urlretrieve
+
+config_filename = 'environment.yml'
 
 class NoEnvironmentConfigFileError(RuntimeError):
     def __init__(self, filepath):
@@ -44,70 +48,27 @@ class NoVersionAvailableError(RuntimeError):
         self.message = "No version available (%s)" % version
 
 class OdooEnvironment:
-    def __init__(self, sources=None, config_filename=defaults.config_filename, init=False, version='6.0'):
+    def __init__(self, path="."):
         """
         Create an instance of OdooEnvironment class.
 
         Arguments:
         config_filename -- Full path to the configuration file.
         """
-        if not sources is None and not exists(sources):
-            makedirs(sources)
-        if exists(config_filename):
-            self.config_filename = abspath(config_filename)
-            self.root_path = dirname(self.config_filename)
-        elif init:
-            path = dirname(config_filename)
-            src_config_filename = config_filename
-            dst_config_filename = join(abspath(path), 'environment.conf')
-
-            if not lexists(path):
-                os.mkdir(abspath(path))
-            urlretrieve(src_config_filename, dst_config_filename)
-            config_filename = dst_config_filename
-
-            self.config_filename = abspath(config_filename)
-            self.root_path = dirname(self.config_filename)
-            if not exists(self.root_path):
-                makedirs(self.root_path)
-            self._config = defaults.environment_configuration
-            if not version in defaults.version_configuration:
-                raise NoVersionAvailableError(version)
-            self._config.update(defaults.version_configuration[version])
-            self._config['Environment.root'] = self.root_path
-            if not sources is None:
-                default_sources = self._config['Environment.sources']
-                symlink(sources, default_sources)
-                self._config['Environment.sources'] = sources
-            self.environments = []
-            self.create_python_environment(defaults.python_environment)
-            self.save(init=True)
-            for d in defaults.directory_structure:
-                nd = join(self.root_path, d)
-                if not exists(nd):
-                    makedirs(nd)
-        else:
-            raise NoEnvironmentConfigFileError(config_filename)
-
+        self.config_filename = abspath(join(path, 'etc', config_filename))
+        self.root_path = abspath(path)
         self.load()
-        self.defaults = {}
-        self.config_filename = join(self.root_path, self.config_filename)
-        self.set_python_environment(self.environments[0])
-        self.addonsourcepath=None
 
-    def changetouser(self):
-        """
-        Change effective user to run this process
-        """
-        username = self._config['Environment.user']
-        uid = getpwnam(username)[2]
+    def setup(self):
+        # Create all nescesary dirs
+        for d in [ join(self.root_path, d) for d in self._config.take(['dir'])['dir']]:
+            if not exists(d): makedirs(d)
 
     def load(self):
         """
         Load configuration file.
         """
         self._config = tools.load_configuration(self.config_filename, defaults={'root': self.root_path})
-        self.environments = self._config['Environment.environments'].split(',')
 
     def save(self, init=False):
         """
@@ -139,27 +100,14 @@ class OdooEnvironment:
                 else:
                     repository.update()
 
-    def create_python_environment(self, name):
+    def create_python_environment(self, name, env):
         """
         Create a new python environment with name
         """
-        path = join(self.root, name)
+        path = env.dir
         if exists(path): return False
         virtualenv.logger = virtualenv.Logger([(virtualenv.Logger.level_for_integer(2), sys.stdout)])
         virtualenv.create_environment(path,site_packages=False)
-        if name not in self.environments:
-                self.environments.append(name)
-
-        client_config_filename=join(path, 'etc', self._config['Environment.client-config-filename'])
-
-        if not exists(dirname(client_config_filename)):
-            makedirs(dirname(client_config_filename))
-
-        if not exists(client_config_filename):
-            tools.save_configuration(defaults.options_client_configuration(path),
-                                     client_config_filename)
-
-        self.save()
         return True
 
     def add_repository(self, branch_name, branch_url):
@@ -171,14 +119,10 @@ class OdooEnvironment:
 
     @property
     def installables(self):
-        installables_str = self._config.get('Environment.installables', False)
-        if installables_str:
-            for i in re.split('\s+', installables_str):
-                if len(i)>1:
-                    method, url = i.strip().split(':',1)
-                    yield Installable(method, url, join(self.env_path,'bin'))
-        else:
-            raise StopIteration
+        bin_path = join(self.root_path, 'bin')
+        src_path = self._config.sources.dir
+        r = [ Installable(r.method, join(src_path, n), bin_path) for n, r in self._config.sources.repos if r.has('method') ]
+        return r
 
     @property
     def modules(self):
@@ -221,9 +165,7 @@ class OdooEnvironment:
 
     @property
     def repositories(self):
-        return dict([ (name.split('.')[1], Repository(join(self.sources_path, name.split('.')[1]), remote_source))
-                 for name, remote_source in self._config.items()
-                 if name.split('.')[0] == 'Repositories' and name.split('.')[1] != 'root'])
+        return dict([ (n, Repository(join(self.sources_path, n), r.url)) for n, r in self._config.sources.repos ])
 
     @property
     def root(self):
@@ -231,7 +173,7 @@ class OdooEnvironment:
 
     @property
     def sources_path(self):
-        return self._config['Environment.sources']
+        return self._config.sources.dir
 
     @property
     def description_filename(self):
@@ -307,13 +249,6 @@ class OdooEnvironment:
         r = [ s for s in r.split(',') if not s == '' ]
         return r
 
-    def set_python_environment(self, name):
-        """
-        Set as the python environment where openerp will run.
-        """
-        self.py_environment_name = name
-        self.env_path = join(self.root_path, self.py_environment_name)
-
     def execute(self, command, args, no_wait=False, check_for_termination=False):
         """
         Execute a command in the python environment defined in set_python_environment()
@@ -371,5 +306,29 @@ if len(TE["openerp-web"])>0: print os.path.join(TE["openerp-web"][0].location,'a
         addons_path = dict(zip(['server', 'web'],[ p.strip() for p in addons_path if exists(p.strip()) ]))
         self.addonsourcepath = addons_path
         return addons_path
+
+def create_environment(path, config_ori):
+    """Create environment structure.
+    """
+    if not exists(path):
+        # Crea el ambiente python
+        virtualenv.logger = virtualenv.Logger([(virtualenv.Logger.level_for_integer(2), sys.stdout)])
+        virtualenv.create_environment(path,site_packages=False)
+
+        # Archivo de configuracion destino
+        config_dst = join(path, 'etc', config_filename)
+
+        # Crea el directorio donde va el archivo de configuracion
+        makedirs(dirname(config_dst))
+
+        # Descarga el archivo de configuracion environment.yml
+        urlretrieve(config_ori, config_dst)
+
+    # Prepara el ambiente Odoo
+    env = OdooEnvironment(path)
+    env.setup()
+
+    return env
+
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

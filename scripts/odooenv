@@ -19,42 +19,33 @@ import distutils
 import bzrlib
 from urlparse import urlparse
 from urllib import urlretrieve
+from odooenv import *
 
 try:
     import pysvn
 except:
     print "Can't use SVN repositories. Please install pysvn. Debian: sudo aptitude install python-svn"
 
-from oerpenv import *
-
 def init(args):
     """
     Init an environment in the work path or in the declared path. 
+
+    config_url: Initial configuration file. Could be an URL.
+    path: Where environment will exists.
     """
     print "Init environment."
     
-    path = args.path
-    repository = args.repository
-    config_filename = args.config
-    version = args.version
+    path = abspath(args.path if args.path else 'odoo')
+    config = args.config if args.config else defaults.config.origin
 
-    if path is not None:
-        url = urlparse(config_filename)
-        config_path = url.path
-        config_basename = os.path.basename(url.path)
-
-    else:
-        print "Where do you want I create your virtual environment?"
-        return -1
-
-    repository = normpath(abspath(expanduser(expandvars(repository)))) if repository is not None else None
-
+    # Create environment.
     try:
-        oerpenv = OdooEnvironment(config_filename=config_filename, sources=repository, init=True, version=version)
+        oerpenv = create_environment(path, defaults.config.origin)
     except RuntimeError, s:
         print s
         return -1
 
+    # Create/upgrade repository
     try:
         for operation, local_branch_url, remote_branch_url in oerpenv.update(iterate=True):
             if operation == 'update':
@@ -68,7 +59,7 @@ def init(args):
         return -1
     except bzrlib.errors.InvalidURL:
         print "Trouble acceding remote repository."
-        print "The url <%s> in the environment.conf is invalid. Modify it and try again." % remote_branch_url 
+        print "The url <%s> in the environment.yml is invalid. Modify it and try again." % remote_branch_url 
         return -1
 
 def setup(args):
@@ -99,7 +90,7 @@ def update(args):
         return -1
     except bzrlib.errors.InvalidURL:
         print "Trouble acceding remote repository."
-        print "Please check the url <%s> in the environment.conf and try again." % remote_branch_url 
+        print "Please check the url <%s> in the environment.yml and try again." % remote_branch_url 
         return -1
     except pysvn._pysvn.ClientError, m:
         print "Trouble acceding remote repository."
@@ -135,8 +126,7 @@ def install(args):
     """
     Install all software in the default environment of in the declared.
     """
-    oerpenv = OdooEnvironment(config_filename=args.config)
-    oerpenv.set_python_environment(args.environment)
+    oerpenv = OdooEnvironment()
 
     print "Checking for availables applications."
     itemstoinstall = [ i.lower() for i in args.itemstoinstall ]
@@ -148,7 +138,7 @@ def install(args):
     if len(installables) == 0:
         print "I cant find %s in installables." % ','.join([i.name for i in installables])
         print "Execute 'oerpenv list-installables' to view available applications to install."
-        print "Or please check if you define it in the list 'installables' of section 'Environment' in the 'environment.conf' file."
+        print "Or please check if you define it in the list 'installables' of section 'Environment' in the 'environment.yml' file."
 
     for app in installables:
         print "Installing %s" % app.name
@@ -295,9 +285,9 @@ def create_dummy_addon(args):
     print "Creating dummy addon on %s" % source_path
 
     # Create addon path structure
-    os.mkdir(source_path)
+    mkdir(source_path)
     for subdir in ['i18n', 'process', 'report', 'security', 'test', 'wizard']:
-        os.mkdir(join(source_path, subdir))
+        mkdir(join(source_path, subdir))
 
     # Create __init__.py files
     for subdir in ['.', 'report', 'wizard']:
@@ -367,7 +357,7 @@ def test_addon(args):
     except OSError, m:
         print "Error in the environment."
         print "ERROR: %s" % m
-        print "If you move the environment please rebuild default python environment and check directories in environment.conf file."
+        print "If you move the environment please rebuild default python environment and check directories in environment.yml file."
         print "If all ok, be sure you executed 'oerpenv install' before run this command."
 
     notify_send = distutils.spawn.find_executable('notify-send')
@@ -473,7 +463,7 @@ def server_start(args):
         print "Environment Error."
         print "ERROR: %s" % m
         traceback.print_exc(file=sys.stdout)
-        print "If you move the environment please rebuild default python environment and check directories in environment.conf file."
+        print "If you move the environment please rebuild default python environment and check directories in environment.yml file."
         print "If all ok, be sure you executed 'oerpenv install' before run this command."
 
 def server_stop(args):
@@ -539,7 +529,7 @@ def web_start(args):
     except OSError, m:
         print "Environment Error."
         print "ERROR: %s" % m
-        print "If you move the environment please rebuild default python environment and check directories in environment.conf file."
+        print "If you move the environment please rebuild default python environment and check directories in environment.yml file."
         print "If all ok, be sure you executed 'oerpenv install' before run this command."
 
 def web_stop(args):
@@ -619,9 +609,9 @@ def list_db(args):
     List availables databases.
     """
     try:
-        conn = psycopg2.connect("")
+        conn = psycopg2.connect(database="template1")
         cur = conn.cursor()
-        cur.execute("select datname from pg_database where datdba=(select usesysid from pg_user where usename=%s) and datname not in ('template0', 'template1', 'postgres') order by datname", (defaults.user,))
+        cur.execute("select datname from pg_database where datdba=(select usesysid from pg_user where usename=%s) and datname not in ('template0', 'template1', 'postgres') order by datname", (args.user,))
         rows = cur.fetchall()
         for (table,) in rows:
             print table
@@ -671,7 +661,7 @@ def init_db(args):
     except OSError, m:
         print "Error in the environment."
         print "ERROR: %s" % m
-        print "If you move the environment please rebuild default python environment and check directories in environment.conf file."
+        print "If you move the environment please rebuild default python environment and check directories in environment.yml file."
         print "If all ok, be sure you executed 'oerpenv install' before run this command."
     pass
 
@@ -934,15 +924,9 @@ def main():
 
     parser_init.add_argument('path', metavar='path', type=str, nargs='?',
                              help='Path to the environment to init.')
-    parser_init.add_argument('--repository', '-r', metavar='repository', type=str, nargs='?',
-                             help='Local repository of sources.')
-    parser_init.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
-                             help='Environment configuration file.')
-    parser_init.add_argument('--version', '-v', metavar='version', type=str, nargs='?',
-                             help='Odoo version to setup')
-    parser_init.set_defaults(func=init,
-                             config=defaults.config_filename,
-                             version=defaults.version)
+    parser_init.add_argument('config', metavar='config', type=str, nargs='?',
+                             help='Initial environment configuration file.')
+    parser_init.set_defaults(func=init)
 
     # The setup command
     parser_setup = subparsers.add_parser('setup', help=init.__doc__)
@@ -950,8 +934,7 @@ def main():
     parser_setup.add_argument('--repository', '-r', metavar='repository', type=str, nargs='?',
                              help='Local repository of sources.')
     parser_setup.set_defaults(func=setup,
-                             config=defaults.config_filename,
-                             version=defaults.version)
+                             config=defaults.config.filename)
 
     # The update command
     parser_update = subparsers.add_parser('update', help=update.__doc__)
@@ -961,7 +944,7 @@ def main():
                              help='Environment configuration file.')
     parser_update.set_defaults(func=update,
                              repositories=None,
-                             config=defaults.config_filename)
+                             config=defaults.config.filename)
 
     # The create command
     parser_create = subparsers.add_parser('create', help=create.__doc__)
@@ -970,7 +953,7 @@ def main():
     parser_create.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
                              help='Environment configuration file.')
     parser_create.set_defaults(func=create,
-                             config=defaults.config_filename)
+                             config=defaults.config.filename)
 
     # The add command
     parser_add = subparsers.add_parser('add', help=add.__doc__)
@@ -981,7 +964,7 @@ def main():
     parser_add.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
                              help='Environment configuration file.')
     parser_add.set_defaults(func=add,
-                             config=defaults.config_filename)
+                             config=defaults.config.filename)
 
     # The install command
     parser_install = subparsers.add_parser('install', help=install.__doc__)
@@ -992,8 +975,8 @@ def main():
     parser_install.add_argument('itemstoinstall', metavar='item_to_install', type=str, nargs='*',
                              help='Item to install.')
     parser_install.set_defaults(func=install,
-                             environment=defaults.python_environment,
-                             config=defaults.config_filename,
+                             environment=defaults.environment.default,
+                             config=defaults.config.filename,
                              )
 
     # The list_installables command
@@ -1003,8 +986,8 @@ def main():
     parser_list_installables.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
                              help='Environment configuration file.')
     parser_list_installables.set_defaults(func=list_installables,
-                             environment=defaults.python_environment,
-                             config=defaults.config_filename)
+                             environment=defaults.environment.default,
+                             config=defaults.config.filename)
 
     # The list_addons command
     parser_list_addons = subparsers.add_parser('list-addons', help=list_addons.__doc__)
@@ -1016,8 +999,8 @@ def main():
                              help='Environment configuration file.')
     parser_list_addons.set_defaults(func=list_addons,
                              filter_string='',
-                             environment=defaults.python_environment,
-                             config=defaults.config_filename)
+                             environment=defaults.environment.default,
+                             config=defaults.config.filename)
 
     # The enable_addon command
     parser_enable_addon = subparsers.add_parser('enable', help=enable_addon.__doc__)
@@ -1032,8 +1015,8 @@ def main():
     parser_enable_addon.add_argument('--ignore-depends', '-d', action='store_true',
                              help='Not install dependecies.')
     parser_enable_addon.set_defaults(func=enable_addon,
-                             environment=defaults.python_environment,
-                             config=defaults.config_filename,
+                             environment=defaults.environment.default,
+                             config=defaults.config.filename,
                              filter=None)
 
     # The disable_addon command
@@ -1045,8 +1028,8 @@ def main():
     parser_disable_addon.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
                              help='Environment configuration file.')
     parser_disable_addon.set_defaults(func=disable_addon,
-                             environment=defaults.python_environment,
-                             config=defaults.config_filename)
+                             environment=defaults.environment.default,
+                             config=defaults.config.filename)
 
     # The dummy command
     parser_create_dummy_addon = subparsers.add_parser('dummy', help=create_dummy_addon.__doc__)
@@ -1057,8 +1040,8 @@ def main():
     parser_create_dummy_addon.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
                              help='Environment configuration file.')
     parser_create_dummy_addon.set_defaults(func=create_dummy_addon,
-                             environment=defaults.python_environment,
-                             config=defaults.config_filename)
+                             environment=defaults.environment.default,
+                             config=defaults.config.filename)
 
     # The test command
     parser_test_addon = subparsers.add_parser('test', help=test_addon.__doc__)
@@ -1079,8 +1062,8 @@ def main():
     parser_test_addon.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
                              help='Environment configuration file.')
     parser_test_addon.set_defaults(func=test_addon,
-                             environment=defaults.python_environment,
-                             config=defaults.config_filename,
+                             environment=defaults.environment.default,
+                             config=defaults.config.filename,
                              )
 
     # The client command
@@ -1090,8 +1073,8 @@ def main():
     parser_start_client.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
                              help='Environment configuration file.')
     parser_start_client.set_defaults(func=start_client,
-                             environment=defaults.python_environment,
-                             config=defaults.config_filename)
+                             environment=defaults.environment.default,
+                             config=defaults.config.filename)
 
     # The server-start subcommand
     parser_server_start = subparsers.add_parser('server-start', help=server_start.__doc__)
@@ -1117,8 +1100,8 @@ def main():
                              help='Default Language')
     parser_server_start.add_argument('extracommands', nargs='*', help='Commands direct to odoo-server')
     parser_server_start.set_defaults(func=server_start,
-                             environment=defaults.python_environment,
-                             config=defaults.config_filename,
+                             environment=defaults.environment.default,
+                             config=defaults.config.filename,
                              extracommands=None)
 
     # The stop subcommand
@@ -1126,8 +1109,8 @@ def main():
     parser_server_stop.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
                              help='Environment configuration file.')
     parser_server_stop.set_defaults(func=server_stop,
-                             environment=defaults.python_environment,
-                             config=defaults.config_filename)
+                             environment=defaults.environment.default,
+                             config=defaults.config.filename)
 
     # The web-start subcommand
     parser_web_start = subparsers.add_parser('web-start', help=web_start.__doc__)
@@ -1137,15 +1120,15 @@ def main():
                              help='Environment configuration file.')
     parser_web_start.add_argument('extracommands', nargs='*', help='Commands direct to odoo-web')
     parser_web_start.set_defaults(func=web_start,
-                             environment=defaults.python_environment,
-                             config=defaults.config_filename,
+                             environment=defaults.environment.default,
+                             config=defaults.config.filename,
                              extracommands=None)
 
     # The stop subcommand
     parser_server_stop = subparsers.add_parser('web-stop', help=web_stop.__doc__)
     parser_server_stop.set_defaults(func=web_stop,
-                             environment=defaults.python_environment,
-                             config=defaults.config_filename)
+                             environment=defaults.environment.default,
+                             config=defaults.config.filename)
 
     # The search_object command
     parser_search_object = subparsers.add_parser('search-object', help=search_object.__doc__)
@@ -1156,8 +1139,8 @@ def main():
     parser_search_object.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
                              help='Environment configuration file.')
     parser_search_object.set_defaults(func=search_object,
-                             environment=defaults.python_environment,
-                             config=defaults.config_filename)
+                             environment=defaults.environment.default,
+                             config=defaults.config.filename)
 
     # The search_entity command
     parser_search_entity = subparsers.add_parser('search-entity', help=search_entity.__doc__)
@@ -1168,8 +1151,8 @@ def main():
     parser_search_entity.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
                              help='Environment configuration file.')
     parser_search_entity.set_defaults(func=search_entity,
-                             environment=defaults.python_environment,
-                             config=defaults.config_filename)
+                             environment=defaults.environment.default,
+                             config=defaults.config.filename)
 
     # The show_addon command
     parser_show_addon = subparsers.add_parser('show', help=show_addon.__doc__)
@@ -1180,8 +1163,8 @@ def main():
     parser_show_addon.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
                              help='Environment configuration file.')
     parser_show_addon.set_defaults(func=show_addon,
-                             environment=defaults.python_environment,
-                             config=defaults.config_filename)
+                             environment=defaults.environment.default,
+                             config=defaults.config.filename)
 
     # The list-db command
     parser_list_db = subparsers.add_parser('list-db', help=list_db.__doc__)
@@ -1192,7 +1175,7 @@ def main():
     parser_shell_db.add_argument('database', metavar='database', type=str, nargs='?',
                              help='Database name.')
     parser_shell_db.set_defaults(func=shell_db,
-                             database=defaults.user)
+                             database=defaults.database.user)
 
     # The create-db command
     parser_create_db = subparsers.add_parser('create-db', help=create_db.__doc__)
@@ -1201,7 +1184,7 @@ def main():
     parser_create_db.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
                              help='Environment configuration file.')
     parser_create_db.set_defaults(func=create_db,
-                             config=defaults.config_filename)
+                             config=defaults.config.filename)
 
     # The drop-db command
     parser_drop_db = subparsers.add_parser('drop-db', help=drop_db.__doc__)
@@ -1210,7 +1193,7 @@ def main():
     parser_drop_db.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
                              help='Environment configuration file.')
     parser_drop_db.set_defaults(func=drop_db,
-                             config=defaults.config_filename)
+                             config=defaults.config.filename)
 
     # The init-db command
     parser_init_db = subparsers.add_parser('init-db', help=init_db.__doc__)
@@ -1221,8 +1204,8 @@ def main():
     parser_init_db.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
                              help='Environment configuration file.')
     parser_init_db.set_defaults(func=init_db,
-                             environment=defaults.python_environment,
-                             config=defaults.config_filename)
+                             environment=defaults.environment.default,
+                             config=defaults.config.filename)
 
     # The snapshot command
     parser_snapshot = subparsers.add_parser('snapshot', help=snapshot.__doc__)
@@ -1234,7 +1217,7 @@ def main():
                              help='Environment configuration file.')
     parser_snapshot.set_defaults(func=snapshot,
                              name=datetime.datetime.today().strftime("%Y%m%d%H%M%S"),
-                             config=defaults.config_filename)
+                             config=defaults.config.filename)
 
     # The extradite command
     parser_extradite = subparsers.add_parser('extradite', help=extradite.__doc__)
@@ -1247,7 +1230,7 @@ def main():
     parser_extradite.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
                              help='Environment configuration file.')
     parser_extradite.set_defaults(func=extradite,
-                             config=defaults.config_filename)
+                             config=defaults.config.filename)
 
     # The restore command
     parser_restore = subparsers.add_parser('restore', help=restore.__doc__)
@@ -1258,7 +1241,7 @@ def main():
     parser_restore.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
                              help='Environment configuration file.')
     parser_restore.set_defaults(func=restore,
-                             config=defaults.config_filename)
+                             config=defaults.config.filename)
 
     # The pip command
     parser_pip = subparsers.add_parser('pip', help=pip.__doc__)
@@ -1270,8 +1253,8 @@ def main():
                              help='Pip command [help, install, bundle, freeze, install, search, uninstall, unzip, zip]')
     parser_pip.add_argument('parameters', nargs='*', help='Parameters to pip command')
     parser_pip.set_defaults(func=pip,
-                             environment=defaults.python_environment,
-                             config=defaults.config_filename,
+                             environment=defaults.environment.default,
+                             config=defaults.config.filename,
                              parameters=None)
 
     # The csv2xml command
@@ -1285,8 +1268,8 @@ def main():
     parser_csv2xml.add_argument('--map', '-m', metavar='map', type=str, nargs='*',
                                 help='Map a reference to an id in XML file. Format: [filename.xml]:[model]:[ID field]:[separated by comma list of fields witch refer the record model]')
     parser_csv2xml.set_defaults(func=csv2xml,
-                             environment=defaults.python_environment,
-                             config=defaults.config_filename,
+                             environment=defaults.environment.default,
+                             config=defaults.config.filename,
                              id_template=None)
 
     # The activate command
@@ -1296,8 +1279,8 @@ def main():
     parser_activate.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
                              help='Environment configuration file.')
     parser_activate.set_defaults(func=activate,
-                             environment=defaults.python_environment,
-                             config=defaults.config_filename,
+                             environment=defaults.environment.default,
+                             config=defaults.config.filename,
                              parameters=None)
 
     # The activate command
@@ -1307,8 +1290,8 @@ def main():
     parser_repath.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
                              help='Environment configuration file.')
     parser_repath.set_defaults(func=repath,
-                             environment=defaults.python_environment,
-                             config=defaults.config_filename,
+                             environment=defaults.environment.default,
+                             config=defaults.config.filename,
                              parameters=None)
 
     # Parse and execute
@@ -1319,7 +1302,7 @@ def main():
     except NoEnvironmentConfigFileError, m:
         print "ERROR:", m.message
         print """
-Go to a environment directory where environment.conf exists, or
+Go to a environment directory where environment.yml exists, or
 create one using 'oerpenv init' command.
 """
         return -1

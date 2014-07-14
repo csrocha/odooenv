@@ -36,9 +36,9 @@ class Installable:
         repository_type = None
         if exists(url):
             repository_type = 'file'
-        if not repository_type and '+' in url and method in ['pip']:
+        elif '+' in url and method in ['pip']:
             repository_type, url = url.split('+',1)
-        if not repository_type and not '+' in url and ':' in url and method in ['pip']:
+        elif not '+' in url and ':' in url and method in ['pip']:
             repository_type = url.split(':',1)[0]
         self._url = url
         self._repository_type = repository_type
