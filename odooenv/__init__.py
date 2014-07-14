@@ -21,7 +21,9 @@
 ##############################################################################
 
 from addon import Addon
-from environment import OpenERPEnvironment
+from environment import OdooEnvironment, create_environment
 from environment import NoEnvironmentConfigFileError, NoVersionAvailableError
 from tools import PostgresNotRunningError
+from defaults import defaults
+
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
