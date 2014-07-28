@@ -77,7 +77,7 @@ def update(args):
     """
     Update sources. 
     """
-    oerpenv = OdooEnvironment(config_filename=args.config)
+    oerpenv = OdooEnvironment()
 
     try:
         for operation, local_branch_url, remote_branch_url in oerpenv.update(iterate=True, repositories=args.repositories):
@@ -180,14 +180,11 @@ def enable_addon(args):
     """
     Enabel addons on the environment. Create a symbolic link.
     """
-    oerpenv = OdooEnvironment(config_filename=args.config)
-    oerpenv.set_python_environment(args.environment)
+    oerpenv = OdooEnvironment()
 
-    path_map = oerpenv.get_addonsourcepath()
-    if 'server' not in path_map:
+    addons_path = oerpenv.get_addonsourcepath()
+    if addons_path == "":
         raise "Server is not installed"
-
-    addons_path = path_map['server']
 
     ignore_filter = re.compile(args.ignore_filter) if args.ignore_filter is not None else None
 
@@ -309,9 +306,8 @@ def test_addon(args):
     """
     Execute the server in test mode for this addon.
     """
-    oerpenv = OdooEnvironment(config_filename=args.config)
-    oerpenv.set_python_environment(args.environment)
-    addons_path = oerpenv.get_addonsourcepath()['server']
+    oerpenv = OdooEnvironment()
+    addons_path = oerpenv.get_addonsourcepath()
 
     if not all([lexists(join(addons_path, token)) for token in args.addon]):
         print "Not all addons are enable." 
@@ -342,8 +338,6 @@ def test_addon(args):
         options = ['--stop-after-init', '--test-enable'] # Para la version 7.0
         if oerpenv.server_config_filename:
             options += [ '--config', oerpenv.server_config_filename ]
-        if oerpenv._config['Environment.version'] in '6.0':
-            options += [ '--test-report-directory', oerpenv.reports_path ]
         if args.debug:
             options += ['--debug', '--log-level=debug']
         else:
@@ -351,7 +345,7 @@ def test_addon(args):
         if args.commit:
             options += ['--test-commit']
         print "Executing:\n odoo-server", " ".join(options + initarg + ['-d', dbname])
-        oerpenv.execute('odoo-server', initarg + ['-d', dbname] + options)
+        oerpenv.execute('odoo.py', initarg + ['-d', dbname] + options)
     except KeyboardInterrupt:
         print "KeyboardInterrupt event."
         exit(-1)
