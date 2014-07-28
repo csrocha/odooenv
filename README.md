@@ -1,30 +1,30 @@
-odooenv - Tool to administrate Odoo environments
-Cristian S. Rocha (c) 2011-2015
-cristian.rocha@moldeointeractive.com.ar
+# odooenv
+Tool to administrate Odoo environments
+
+Moldeo Interactive (c) 2014-2018
+ Cristian S. Rocha
+ csr@moldeo.coop
 
 This code is distributed under the MIT license.
 
-# Instroduction
+## Instroduction
 
 OdooEnv is a python based environment manager. It's come from OERPenv which exists in "https://launchpad.net/oerpenv". But when renamed OpenERP to Odoo, whe change the name and repository plase.
 
-# Requirements
+## Requirements
 
-You must have installed pysvn and bzrlib. In case you are working in a Debian or Ubuntu environment, you can install both packages with:
+Using PIP installer.
 
- aptitude install python-pysvn
- aptitude install python-bzrlib
+```
+ pip install odooenv
+```
 
-# Installation:
-
-After installing the needed dependencies, you have to execute:
-
- python setup.py install
-
-# Usage:
+## Usage:
 
 The odooenv command line is available with the following sub-commands:
 
+
+```
 	usage: odooenv [-h]
 		       
 		       {init,update,create,add,install,list-installables,list-addons,enable,disable,dummy,test,client,search,show}
@@ -58,44 +58,57 @@ The odooenv command line is available with the following sub-commands:
 	    client              Execute the server in test mode for this addon.
 	    search              Search addon with this object.
 	    show                Show addon information.
+```
    
 
 All configurations are stored in the environment.conf file. You can setup it by hand or by using the available commands listed above.
 
-# Testing a module:
+## Testing a module:
 
 To create a simple Odoo instance you need to run the following commands in your work directory.
 
+```
 $ odooenv init odoo_env
 $ cd odoo_env
 $ odooenv update
 $ odooenv install
 $ odooenv list-addons
+```
 
 Search for an addon to test, like hr_attendance
 
+```
 $ odooenv enable hr_attendance
 $ odooenv test hr_attendance
+```
 
 In case you want to run the server, you only need to execute:
 
+```
 $ odooenv server-start --debug
+```
 
 The server should be running and you can start working with Odoo by launching your browser and pointing it to the appropiate port (commonly 8069)
 
-# Develop a new addon not from zero:
+## Develop a new addon not from zero:
 
 If you need test more than one module, or you want develop a new addon you can create a dummy addon in the following way:
 
+```
 $ odooenv dummy hr_test
+```
 
 In the output you can find the source path. There you can found the __odoo__.py file. Append the modules you want to test in the 'depends' field, in this example will use hr_attendace and hr_contract. If you done all right you can execute the follwing command without errors:
 
+```
 $ odooenv enable hr_test
+```
 
 Then you can execute the server in mode test again, for the new module.
 
+```
 $ odooenv test hr_test
+```
 
 # Searching for an object in source code:
 
