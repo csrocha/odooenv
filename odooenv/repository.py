@@ -105,7 +105,7 @@ class SVNRepository(RepositoryBase):
         client.checkout(self.remote_url, self.local_path)
 
     _url_re_ = [
-        re.compile('^https:.*$'),
+        re.compile('^https:.*(?<!\.git)$'),
         re.compile('^svn:.*$'),
         re.compile('^svn+ssh:.*'),
     ]
@@ -124,6 +124,7 @@ class GITRepository(RepositoryBase):
         subprocess.call(['git', 'clone', '--depth', '1', self.remote_url, self.local_path])
 
     _url_re_ = [
+        re.compile('^https:.*\.git$'),
         re.compile('^git@.*$'),
     ]
 
