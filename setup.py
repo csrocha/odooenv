@@ -23,7 +23,7 @@
 from setuptools import setup
 
 setup(name='odooenv',
-      version='2.0.0',
+      version='2.0.1',
       author='Cristian S. Rocha',
       author_email='cristian.rocha@moldeo.coop',
       maintainer='Cristian S. Rocha',
@@ -101,6 +101,8 @@ setup(name='odooenv',
       ],
       scripts=['scripts/odooenv'],
       packages=['odooenv'],
+      package_dir={'odooenv': 'odooenv'},
+      package_data={'odooenv': ['data/*.yml']},
       test_suite='tests',
       install_requires=['virtualenv','psycopg2','argparse','bzr'],
       dependency_links=['http://pysvn.barrys-emacs.org/source_kits/pysvn-1.7.5.tar.gz'],
