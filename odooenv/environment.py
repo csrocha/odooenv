@@ -72,6 +72,8 @@ class OdooEnvironment:
         """
         self._config = tools.load_configuration(self.config_filename, defaults={'root': self.root_path})
         if self._config.has('logging'):
+            for d in [ dirname(join(self.root_path, f)) for f in self._config.logging.take(['filename'])['filename']]:
+                if not exists(d): makedirs(d)
             logging.config.dictConfig(self._config.logging.as_dict()) 
             self._logger = logging.getLogger('odooenv')
         else:
@@ -158,10 +160,10 @@ class OdooEnvironment:
             filter_e = lambda a: True
 
         for path, ds, fs in walk(self.sources_path, followlinks=True):
-            if self._config['Environment.desc-filename'] in fs and \
+            if self._config.addons.config in fs and \
                '__init__.py' in fs and \
                filter_t(basename(path)):
-                addon = Addon(join(path, self._config['Environment.desc-filename']))
+                addon = Addon(join(path, self._config.addons.config))
                 if filter_o(addon) and filter_i(addon) and filter_e(addon):
                     yield addon
                 ds = []
@@ -267,7 +269,7 @@ class OdooEnvironment:
                 if not P.poll() is None: return None
             return P.pid
         else:
-            P = subprocess.Popen([join(self.env_path,'bin',command)] + args)
+            P = subprocess.Popen([join(self.root,'bin',command)] + args)
             P.wait()
             return None
 
@@ -275,42 +277,19 @@ class OdooEnvironment:
         """
         Return a list of path to addons directories.
         """
-        if self.addonsourcepath is not None:
+        if getattr(self, 'addonsourcepath', False):
             return self.addonsourcepath
 
-        python_exe = join(self.env_path, 'bin', 'python')
+        python_exe = join(self.root, 'bin', 'python')
 
-        _query_addons = {
-            '6.0': """\
+        _query_addons = """
 import pkg_resources, os.path
-TE = pkg_resources.Environment()
-print pkg_resources.resource_filename('openerp-server', 'addons')
-print os.path.join(TE["openerp-web"][0].location,'addons')
-            """,
-            '6.1': """\
-import pkg_resources, os.path
-TE = pkg_resources.Environment()
 print pkg_resources.resource_filename('openerp', 'addons')
-print os.path.join(TE["openerp-web"][0].location,'addons')
-            """,
-            '7.0': """\
-import pkg_resources, os.path
-TE = pkg_resources.Environment()
-print pkg_resources.resource_filename('openerp', 'addons')
-if len(TE["openerp-web"])>0: print os.path.join(TE["openerp-web"][0].location,'addons')
-            """,
-            '8.0': """\
-import pkg_resources, os.path
-TE = pkg_resources.Environment()
-print pkg_resources.resource_filename('openerp', 'addons')
-if len(TE["openerp-web"])>0: print os.path.join(TE["openerp-web"][0].location,'addons')
-            """,
-        }
+"""
 
-        p = subprocess.Popen([ python_exe, '-c', _query_addons[self.version] ],
+        p = subprocess.Popen([ python_exe, '-c', _query_addons ],
                             stdout=subprocess.PIPE, stdin=subprocess.PIPE)
-        addons_path = p.stdout.readlines()
-        addons_path = dict(zip(['server', 'web'],[ p.strip() for p in addons_path if exists(p.strip()) ]))
+        addons_path = p.stdout.readline().strip()
         self.addonsourcepath = addons_path
         return addons_path
 
