@@ -7,13 +7,13 @@ Moldeo Interactive (c) 2014-2018
 
 This code is distributed under the MIT license.
 
-## Instroduction
+## Introduction
 
-OdooEnv is a python based environment manager. It's come from OERPenv which exists in "https://launchpad.net/oerpenv". But when renamed OpenERP to Odoo, whe change the name and repository plase.
+OdooEnv is a python based environment manager. It is a derivative from OERPenv which exists in "https://launchpad.net/oerpenv". But when OpenERP was renamed to Odoo, we changed the OERPEnv to OdooEnv. We also changed the source repository, changing it from launchpad to github.
 
-## Requirements
+## Installation
 
-Using PIP installer.
+Using PIP installer (pip needs to be installed)
 
 ```
  pip install odooenv
@@ -31,33 +31,33 @@ The odooenv command line is available with the following sub-commands:
 		       ...
 
 	optional arguments:
-	  -h, --help            show this help message and exit
+	  -h, --help            shows this help message and exits
 
 	subcommands:
-	  The Odoo environment administrator help you to administrate Odoo
+	  The Odoo environment administrator helps you administrate Odoo
 	  environments. You can use the following commands.
 
 	  {init,update,create,add,install,list-installables,list-addons,enable,disable,dummy,test,client,search,show}
 				commands
-	    init                Init an environment in the work path or in the
+	    init                Initializes an environment in the work path or in the
 				declared path.
-	    update              Update sources.
-	    create              Create a new python environment.
-	    add                 Add a branch with to the sources list.
-	    install             Install all software in the default environment of in
-				the declared.
-	    list-installables   List all availables applications in sources.
-	    list-addons         List availables addons in sources. Show all addons if
+	    update              Updates sources.
+	    create              Creates a new python environment.
+	    add                 Adds a branch to the sources list.
+	    install             Installs all the required software in the default environment. The packages to be installed need to be declared 
+				in the environment file. 
+	    list-installables   Lists all available applications in sources.
+	    list-addons         Lists available addons in sources. Shows all addons if
 				not filter expression declared.
-	    enable              Enabel addons on the environment. Create a symbolic
+	    enable              Enables addons on the environment. Creates a symbolic
 				link.
-	    disable             Disable addons on the environment. Remove a symbolic
+	    disable             Disables addons on the environment. Removes a symbolic
 				link.
-	    dummy               Create a dummy addon. Useful to create new addon.
-	    test                Execute the server in test mode for this addon.
-	    client              Execute the server in test mode for this addon.
-	    search              Search addon with this object.
-	    show                Show addon information.
+	    dummy               Creates a dummy addon. Useful for creating a new addon from scratch.
+	    test                Executes the server in test mode for this addon.
+	    client              Executes the server in test mode for this addon.
+	    search              Searchs addon with this object.
+	    show                Shows addon information.
 ```
    
 
@@ -70,7 +70,6 @@ To create a simple Odoo instance you need to run the following commands in your 
 ```
 $ odooenv init odoo_env
 $ cd odoo_env
-$ odooenv update
 $ odooenv install
 $ odooenv list-addons
 ```
@@ -98,7 +97,7 @@ If you need test more than one module, or you want develop a new addon you can c
 $ odooenv dummy hr_test
 ```
 
-In the output you can find the source path. There you can found the __odoo__.py file. Append the modules you want to test in the 'depends' field, in this example will use hr_attendace and hr_contract. If you done all right you can execute the follwing command without errors:
+In the output you can find the source path. There you can found the __openerp__.py file. Append the modules you want to test in the 'depends' field, in this example will use hr_attendace and hr_contract. If you done all right you can execute the follwing command without errors:
 
 ```
 $ odooenv enable hr_test
