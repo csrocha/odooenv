@@ -210,10 +210,10 @@ class OdooEnvironment:
 
     @property
     def server_config_filename(self):
-        if 'Environment.server-config-filename' in self._config:
-            return join(self.env_path, 'etc', self._config['Environment.server-config-filename'])
+        if self._config.has('server') and self._config.server.has('config'):
+            return self._config.server.config
         else:
-            False
+            return False
 
     @property
     def web_config_filename(self):
