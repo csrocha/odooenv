@@ -367,7 +367,7 @@ def test_addon(args):
 
     print "TEST FINISHED."
 
-def server_start(args):
+def start(args):
     """
     Start the server.
     """
@@ -444,7 +444,7 @@ def server_start(args):
         print "If you move the environment please rebuild default python environment and check directories in environment.yml file."
         print "If all ok, be sure you executed 'oerpenv install' before run this command."
 
-def server_stop(args):
+def stop(args):
     """
     Stop the server.
     """
@@ -642,7 +642,7 @@ def extradite(args):
     """
     Copy database from remote/local server to local/remote server.
     """
-    oerpenv = OdooEnvironment(config_filename=args.config)
+    oerpenv = OdooEnvironment()
     snapshots = oerpenv.snapshots_path
 
     operation = args.operation.pop()
@@ -975,39 +975,39 @@ def main():
                              config=defaults.config.filename,
                              )
 
-    # The server-start subcommand
-    parser_server_start = subparsers.add_parser('server-start', help=server_start.__doc__)
-    parser_server_start.add_argument('--database', '-D',  metavar='database', type=str, nargs='?',
+    # The start subcommand
+    parser_start = subparsers.add_parser('start', help=start.__doc__)
+    parser_start.add_argument('--database', '-D',  metavar='database', type=str, nargs='?',
                              help='Database name.')
-    parser_server_start.add_argument('--environment', '-e', metavar='environment', type=str, nargs='?',
+    parser_start.add_argument('--environment', '-e', metavar='environment', type=str, nargs='?',
                              help='Python environment name.')
-    parser_server_start.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
+    parser_start.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
                              help='Environment configuration file.')
-    parser_server_start.add_argument('--snapshot', '-s', metavar='snapshot', type=str, nargs='?',
+    parser_start.add_argument('--snapshot', '-s', metavar='snapshot', type=str, nargs='?',
                              help='Snapshot of the database.')
-    parser_server_start.add_argument('--debug', '-d', action='store_true',
+    parser_start.add_argument('--debug', '-d', action='store_true',
                              help='Start server in debug mode. Stop until an exception.')
-    parser_server_start.add_argument('--force-start', '-f', action='store_true',
+    parser_start.add_argument('--force-start', '-f', action='store_true',
                              help='Forces server start. Does not check whether a process file is present or not.')
-    parser_server_start.add_argument('--production', '-p', action='store_true',
+    parser_start.add_argument('--production', '-p', action='store_true',
                              help='Start server in production mode. No test and demos.')
-    parser_server_start.add_argument('--update', '-u', metavar='MODULES', type=str, nargs='*',
+    parser_start.add_argument('--update', '-u', metavar='MODULES', type=str, nargs='*',
                              help='Update modules')
-    parser_server_start.add_argument('--install', '-i', metavar='MODULES', type=str, nargs='*',
+    parser_start.add_argument('--install', '-i', metavar='MODULES', type=str, nargs='*',
                              help='Install modules')
-    parser_server_start.add_argument('--language', '-l', metavar='LANG', type=str, nargs='?',
+    parser_start.add_argument('--language', '-l', metavar='LANG', type=str, nargs='?',
                              help='Default Language')
-    parser_server_start.add_argument('extracommands', nargs='*', help='Commands direct to odoo-server')
-    parser_server_start.set_defaults(func=server_start,
+    parser_start.add_argument('extracommands', nargs='*', help='Commands direct to odoo-server')
+    parser_start.set_defaults(func=start,
                              environment=defaults.environment.default,
                              config=defaults.config.filename,
                              extracommands=None)
 
     # The stop subcommand
-    parser_server_stop = subparsers.add_parser('server-stop', help=server_stop.__doc__)
-    parser_server_stop.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
+    parser_stop = subparsers.add_parser('stop', help=stop.__doc__)
+    parser_stop.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
                              help='Environment configuration file.')
-    parser_server_stop.set_defaults(func=server_stop,
+    parser_stop.set_defaults(func=stop,
                              environment=defaults.environment.default,
                              config=defaults.config.filename)
 
