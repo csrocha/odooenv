@@ -125,7 +125,7 @@ class GITRepository(RepositoryBase):
         git_command = ['git', 'clone']
         git_command.extend(['--depth', '1', '--single-branch'])
         if self.branch:
-            git_command.extend(['--branch', self.branch])
+            git_command.extend(['--branch', str(self.branch)])
         git_command.extend([self.remote_url, self.local_path])
         subprocess.call(git_command)
 
