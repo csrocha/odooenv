@@ -26,7 +26,7 @@ import sys
 import time
 import logging
 import logging.config
-from os import makedirs, walk, symlink, mkdir
+from os import makedirs, walk, symlink, mkdir, listdir
 from os.path import abspath, join, exists, lexists, dirname, basename
 from installable import Installable
 from odooenv import tools
@@ -70,6 +70,9 @@ class OdooEnvironment:
         """
         Load configuration file.
         """
+        if not exists(self.config_filename):
+            raise NoEnvironmentConfigFileError(self.config_filename)
+
         self._config = tools.load_configuration(self.config_filename, defaults={'root': self.root_path})
         if self._config.has('logging'):
             for d in [ dirname(join(self.root_path, f)) for f in self._config.logging.take(['filename'])['filename']]:
@@ -299,13 +302,13 @@ print pkg_resources.resource_filename('openerp', 'addons')
 def create_environment(path, config_ori):
     """Create environment structure.
     """
-    if not exists(path):
+    # Archivo de configuracion destino
+    config_dst = join(path, 'etc', config_filename)
+
+    if not exists(path) or not listdir(path):
         # Crea el ambiente python
         virtualenv.logger = virtualenv.Logger([(virtualenv.Logger.level_for_integer(2), sys.stdout)])
         virtualenv.create_environment(path,site_packages=False)
-
-        # Archivo de configuracion destino
-        config_dst = join(path, 'etc', config_filename)
 
         # Crea el directorio donde va el archivo de configuracion
         makedirs(dirname(config_dst))
