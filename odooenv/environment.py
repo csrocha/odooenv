@@ -122,9 +122,6 @@ class OdooEnvironment:
         virtualenv.create_environment(path,site_packages=False)
         return True
 
-    def add_repository(self, branch_name, branch_url):
-        self._config['Repositories.%s' % branch_name] = branch_url
-
     @property
     def binary_path(self):
         return join(self.env_path, 'bin')
@@ -177,7 +174,7 @@ class OdooEnvironment:
 
     @property
     def repositories(self):
-        return dict([ (n, Repository(join(self.sources_path, n), r.url)) for n, r in self._config.sources.repos ])
+        return dict([ (n, Repository(join(self.sources_path, n), r.url, r.get('branch'))) for n, r in self._config.sources.repos ])
 
     @property
     def root(self):
