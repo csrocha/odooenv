@@ -194,7 +194,10 @@ class OdooEnvironment:
 
     @property
     def snapshots_path(self):
-        return self._config['Environment.snapshots']
+        if self._config.has('snapshots') and self._config.server.has('path'):
+            return self._config.snapshots.path
+        else:
+            return False
 
     @property
     def addons_dir(self):
