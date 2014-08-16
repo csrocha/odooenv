@@ -37,9 +37,10 @@ except:
     without_svn = True
 
 class RepositoryBase:
-    def __init__(self, local_path, remote_url):
+    def __init__(self, local_path, remote_url, branch=None):
         self.local_path = local_path
         self.remote_url = remote_url
+        self.branch = branch
 
     def update(self):
         raise NotImplementedError
@@ -56,8 +57,8 @@ class RepositoryBase:
     _url_re_ = []
 
 class BazaarRepository(RepositoryBase):
-    def __init__(self, local_path, remote_url):
-        self = RepositoryBase.__init__(self, local_path, remote_url)
+    def __init__(self, local_path, remote_url, branch=None):
+        self = RepositoryBase.__init__(self, local_path, remote_url, branch=branch)
         load_plugins()
 
     def update(self):
@@ -87,11 +88,11 @@ def ssl_server_trust_prompt( trust_dict ):
     return a in 'Yesyes', trust_dict['failures'], True
 
 class SVNRepository(RepositoryBase):
-    def __init__(self, local_path, remote_url):
+    def __init__(self, local_path, remote_url, branch=None):
         if without_svn:
             raise RuntimeError("You need install PySVN to use SVN capabilities.")
 
-        self = RepositoryBase.__init__(self, local_path, remote_url)
+        self = RepositoryBase.__init__(self, local_path, remote_url,branch=branch)
         load_plugins()
 
     def update(self):
@@ -111,8 +112,8 @@ class SVNRepository(RepositoryBase):
     ]
 
 class GITRepository(RepositoryBase):
-    def __init__(self, local_path, remote_url):
-        self = RepositoryBase.__init__(self, local_path, remote_url)
+    def __init__(self, local_path, remote_url, branch=None):
+        self = RepositoryBase.__init__(self, local_path, remote_url, branch=branch)
 
     def update(self):
         olddir = os.getcwd()
@@ -121,18 +122,23 @@ class GITRepository(RepositoryBase):
         os.chdir(olddir)
 
     def checkout(self):
-        subprocess.call(['git', 'clone', '--depth', '1', self.remote_url, self.local_path])
+        git_command = ['git', 'clone']
+        git_command.extend(['--depth', '1', '--single-branch'])
+        if self.branch:
+            git_command.extend(['--branch', self.branch])
+        git_command.extend([self.remote_url, self.local_path])
+        subprocess.call(git_command)
 
     _url_re_ = [
         re.compile('^https:.*\.git$'),
         re.compile('^git@.*$'),
     ]
 
-def Repository(local_path, branch_url):
+def Repository(local_path, branch_url, branch=None):
     classes = [ BazaarRepository, SVNRepository, GITRepository ]
     for c in classes:
         if any([ ure.search(branch_url) is not None for ure in c._url_re_ ]):
-            return c(local_path, branch_url)
+            return c(local_path, branch_url, branch=branch)
         
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
  
