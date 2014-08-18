@@ -181,10 +181,14 @@ def enable_addon(args):
     Enabel addons on the environment. Create a symbolic link.
     """
     oerpenv = OdooEnvironment()
+    logger = oerpenv.logger
 
-    addons_path = oerpenv.get_addonsourcepath()
-    if addons_path == "":
-        raise "Server is not installed"
+    try:
+        addons_path = oerpenv.get_addonsourcepath()
+    except:
+        if addons_path == "":
+           logger.error("Server is not installed")
+           return
 
     ignore_filter = re.compile(args.ignore_filter) if args.ignore_filter is not None else None
 
@@ -382,8 +386,18 @@ def start(args):
     force_start = args.force_start or False
     language =  args.language if args.language is not None else oerpenv.language
     extracommands =  args.extracommands if args.extracommands is not None else oerpenv.extracommands
+    save =  args.save or False
 
     options = []
+
+    if not lexists(oerpenv.server_config_filename):
+        options += [ '--save' ]
+        options += [ '--addons-path', oerpenv.get_addonsourcepath() ]
+
+    if save:
+        debug = True
+        options += [ '--save', '--stop-after-init' ]
+        options += [ '--addons-path', oerpenv.get_addonsourcepath() ]
 
     if database and database is not None:
         options += [ '-d', database ]
@@ -960,6 +974,8 @@ def main():
                              help='Database name.')
     parser_start.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
                              help='Environment configuration file.')
+    parser_start.add_argument('--save', '-v', action='store_true',
+                             help='Save initial configuration file.')
     parser_start.add_argument('--snapshot', '-s', metavar='snapshot', type=str, nargs='?',
                              help='Snapshot of the database.')
     parser_start.add_argument('--debug', '-d', action='store_true',
