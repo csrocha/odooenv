@@ -37,6 +37,12 @@ from repository import Repository
 from pwd import getpwnam
 from urllib import urlretrieve
 
+try:
+    from subprocess import DEVNULL # py3k
+except ImportError:
+    import os
+    DEVNULL = open(os.devnull, 'wb')
+
 config_filename = 'environment.yml'
 
 class NoEnvironmentConfigFileError(RuntimeError):
@@ -121,6 +127,10 @@ class OdooEnvironment:
         virtualenv.logger = virtualenv.Logger([(virtualenv.Logger.level_for_integer(2), sys.stdout)])
         virtualenv.create_environment(path,site_packages=False)
         return True
+
+    @property
+    def logger(self):
+        return self._logger
 
     @property
     def binary_path(self):
@@ -289,9 +299,9 @@ class OdooEnvironment:
 import pkg_resources, os.path
 print pkg_resources.resource_filename('openerp', 'addons')
 """
-
+       
         p = subprocess.Popen([ python_exe, '-c', _query_addons ],
-                            stdout=subprocess.PIPE, stdin=subprocess.PIPE)
+                            stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=DEVNULL)
         addons_path = p.stdout.readline().strip()
         self.addonsourcepath = addons_path
         return addons_path
