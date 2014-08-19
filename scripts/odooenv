@@ -313,33 +313,28 @@ def test_addon(args):
     oerpenv = OdooEnvironment()
     addons_path = oerpenv.get_addonsourcepath()
 
-    if not all([lexists(join(addons_path, token)) for token in args.addon]):
-        print "Not all addons are enable." 
-        print "Execute 'oerpenv enable %s' before run this command." % ' '.join(args.addon) 
-        return -1
+    test_config = oerpenv.get_tests()
+    tests = args.tests
 
-    if args.snapshot is not None:
-        print "Recovering snapshot '%s' of the database '%s'." % (args.snapshot, args.database)
-        if not tools.recover_snapshot(args.database, args.snapshot, oerpenv):
-            print "ERROR: Cant recover snapshot %s." % args.snapshot
+    for test in tests:
+        print "Running test %s" % test
+        if test not in test_config:
+            print "Skipping."
+            continue
+
+        dbname = test_config[test].get('database', "_test_%s_" % test)
+        addons = test_config[test].get('addons').split(' ')
+        try:
+            if not tools.exists_db(dbname):
+                print "Create db %s" % dbname
+                tools.create_database(dbname);
+        except PostgresNotRunningError, m:
+            print m.message
             return -1
-        dbname = args.database
-    else:
-        dbname = args.database if args.database is not None else "test_db_%s" % '_'.join(args.addon)
 
-    try:
-        if not tools.exists_db(dbname):
-            print "Create db %s" % dbname
-            tools.create_database(dbname);
-    except PostgresNotRunningError, m:
-        print m.message
-        return -1
-
-    print "Running test %s" % ','.join(args.addon)
-    try:
-        op = "-i" if args.keep_db else "-i"
-        initarg = [op] + [ ','.join(args.addon) ]
-        options = ['--stop-after-init', '--test-enable'] # Para la version 7.0
+        options = ['--stop-after-init', '--test-enable']
+        options += [ '-d', dbname ]
+        options += [ '--init', ','.join(addons) ]
         if oerpenv.server_config_filename:
             options += [ '--config', oerpenv.server_config_filename ]
         if args.debug:
@@ -348,26 +343,19 @@ def test_addon(args):
             options += ['--log-level=test']
         if args.commit:
             options += ['--test-commit']
-        print "Executing:\n odoo-server", " ".join(options + initarg + ['-d', dbname])
-        oerpenv.execute('odoo.py', initarg + ['-d', dbname] + options)
-    except KeyboardInterrupt:
-        print "KeyboardInterrupt event."
-        exit(-1)
-    except OSError, m:
-        print "Error in the environment."
-        print "ERROR: %s" % m
-        print "If you move the environment please rebuild default python environment and check directories in environment.yml file."
-        print "If all ok, be sure you executed 'oerpenv install' before run this command."
 
-    notify_send = distutils.spawn.find_executable('notify-send')
-    if notify_send:
-        src_p = subprocess.Popen([ notify_send, 'Test finished'])
+        print "Executing:\n odoo-server", " ".join(options)
+        oerpenv.execute('odoo.py', options)
 
-    if args.keep_db:
-        pass
-    else:
-        print "Drop db %s" % dbname
-        tools.drop_database(dbname);
+    #notify_send = distutils.spawn.find_executable('notify-send')
+    #if notify_send:
+    #    src_p = subprocess.Popen([ notify_send, 'Test finished'])
+
+    #if args.keep_db:
+    #    pass
+    #else:
+    #    print "Drop db %s" % dbname
+    #    tools.drop_database(dbname);
 
     print "TEST FINISHED."
 
@@ -950,8 +938,8 @@ def main():
 
     # The test command
     parser_test_addon = subparsers.add_parser('test', help=test_addon.__doc__)
-    parser_test_addon.add_argument('addon', metavar='addon', type=str, nargs='+',
-                             help='Addon name.')
+    parser_test_addon.add_argument('tests', metavar='tests', type=str, nargs='+',
+                             help='Tests names defined in environment.')
     parser_test_addon.add_argument('--database', '-d', metavar='database', type=str, nargs='?',
                              help='Database name.')
     parser_test_addon.add_argument('--snapshot', '-s', metavar='snapshot', type=str, nargs='?',

@@ -286,6 +286,12 @@ class OdooEnvironment:
             P.wait()
             return None
 
+    def get_tests(self):
+        """
+        Return dict of tests.
+        """
+        return self._config.test.as_dict()
+
     def get_addonsourcepath(self):
         """
         Return a list of path to addons directories.
