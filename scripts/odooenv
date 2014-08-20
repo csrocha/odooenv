@@ -234,9 +234,9 @@ def enable_addon(args):
             to_install.update(addon.depends)
         
         if addon.is_enable(oerpenv):
-            print "Updating %s (%i)" % (addon_name, len(to_install))
+            print "Updating %s (%i:%s)" % (addon_name, len(to_install), addon.path)
         else:
-            print "Installing %s (%i)" % (addon_name, len(to_install))
+            print "Installing %s (%i:%s)" % (addon_name, len(to_install), addon.path)
 
         yet_enabled.add(addon_name)
         to_install = to_install - yet_enabled
@@ -256,17 +256,17 @@ def disable_addon(args):
     """
     Disable addons on the environment. Remove a symbolic link.
     """
-    oerpenv = OdooEnvironment(config_filename=args.config)
-    oerpenv.set_python_environment(args.environment)
+    oerpenv = OdooEnvironment()
 
-    addons_path = oerpenv.get_addonsourcepath()['server']
+    addons_path = oerpenv.get_addonsourcepath()
+    config_filename = oerpenv.addon_config_filename
 
     files = iglob(join(addons_path, args.addon[0]))
 
     for addon_path in files:
-        addon = Addon(addon_path)
+        addon = Addon(join(addon_path, config_filename))
         if addon.is_enable(oerpenv):
-            print "Removing %s." % Addon(files).token
+            print "Removing %s." % addon.token
             addon.disable(oerpenv)
         else:
             print "Addon %s not enabled." % args.addon[0]
@@ -315,6 +315,7 @@ def test_addon(args):
 
     test_config = oerpenv.get_tests()
     tests = args.tests
+    cleandb = args.clean
 
     for test in tests:
         print "Running test %s" % test
@@ -324,8 +325,9 @@ def test_addon(args):
 
         dbname = test_config[test].get('database', "_test_%s_" % test)
         addons = test_config[test].get('addons').split(' ')
+        logfile = test_config[test].get('logfile')
         try:
-            if not tools.exists_db(dbname):
+            if not tools.exists_db(dbname) or cleandb:
                 print "Create db %s" % dbname
                 tools.create_database(dbname);
         except PostgresNotRunningError, m:
@@ -343,6 +345,8 @@ def test_addon(args):
             options += ['--log-level=test']
         if args.commit:
             options += ['--test-commit']
+        if logfile:
+            options += ['--logfile',logfile]
 
         print "Executing:\n odoo-server", " ".join(options)
         oerpenv.execute('odoo.py', options)
@@ -593,7 +597,7 @@ def snapshot(args):
     """
     Generate a database snapshot.
     """
-    oerpenv = OdooEnvironment(config_filename=args.config)
+    oerpenv = OdooEnvironment()
     snapshots = oerpenv.snapshots_path
 
     dbname = args.database[0]
@@ -908,6 +912,8 @@ def main():
     parser_enable_addon = subparsers.add_parser('enable', help=enable_addon.__doc__)
     parser_enable_addon.add_argument('addon', metavar='addon', type=str, nargs='+',
                              help='Addon name.')
+    parser_enable_addon.add_argument('--path', '-p', metavar='path', type=str, nargs='?',
+                             help='Path to search.')
     parser_enable_addon.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
                              help='Environment configuration file.')
     parser_enable_addon.add_argument('--ignore-filter', '-i', metavar='ignore_filter', type=str, nargs='?',
@@ -915,6 +921,7 @@ def main():
     parser_enable_addon.add_argument('--ignore-depends', '-d', action='store_true',
                              help='Not install dependecies.')
     parser_enable_addon.set_defaults(func=enable_addon,
+                             path=None,
                              config=defaults.config.filename,
                              filter=None)
 
@@ -940,12 +947,8 @@ def main():
     parser_test_addon = subparsers.add_parser('test', help=test_addon.__doc__)
     parser_test_addon.add_argument('tests', metavar='tests', type=str, nargs='+',
                              help='Tests names defined in environment.')
-    parser_test_addon.add_argument('--database', '-d', metavar='database', type=str, nargs='?',
-                             help='Database name.')
-    parser_test_addon.add_argument('--snapshot', '-s', metavar='snapshot', type=str, nargs='?',
-                             help='Snapshot name.')
-    parser_test_addon.add_argument('--keep-db', '-k', action='store_true',
-                             help='Don\'t drop db at end.')
+    parser_test_addon.add_argument('--clean', '-C', action='store_true',
+                             help='Clean database before start the tests.')
     parser_test_addon.add_argument('--commit', '-m', action='store_true',
                              help='Commit test changes in database.')
     parser_test_addon.add_argument('--debug', '-g', action='store_true',

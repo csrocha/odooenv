@@ -107,8 +107,7 @@ class Addon:
             Return true if the addon is enabled in the environment.
             """
             path = self.environment_path(environment)
-            return exists(path) and \
-                realpath(path) == self.path
+            return exists(path) and exists(realpath(path)) and dirname(realpath(path)) != self.path
 
         def is_saned(self, environment):
             """
@@ -145,6 +144,8 @@ class Addon:
             """
             Disable this addon in this environment. Not check depends.
             """
+            addons_path = environment.get_addonsourcepath()
+            where_install = join(addons_path, self.token)
             if self.is_enable(environment):
                 os.remove(where_install)
                 return True

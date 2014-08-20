@@ -148,6 +148,8 @@ class OdooEnvironment:
         return [ Installable(m, is_application=False) for m in self._config['Environment.modules'].split(',') ]
 
     def addons(self, token_filter=None, object_filter=None, inherited_filter=None, entity_filter=None):
+        config_filename = self.addon_config_filename
+
         if not token_filter is None:
             filter_re = re.compile(token_filter)
             filter_t = lambda s: filter_re.search(s) != None
@@ -170,13 +172,18 @@ class OdooEnvironment:
             filter_e = lambda a: True
 
         for path, ds, fs in walk(self.sources_path, followlinks=True):
-            if self._config.addons.config in fs and \
-               '__init__.py' in fs and \
-               filter_t(basename(path)):
-                addon = Addon(join(path, self._config.addons.config))
+            if config_filename in fs and '__init__.py' in fs and filter_t(basename(path)):
+                addon = Addon(join(path, config_filename))
                 if filter_o(addon) and filter_i(addon) and filter_e(addon):
                     yield addon
                 ds = []
+
+    @property
+    def addon_config_filename(self):
+        if self._config.has('addons') and self._config.addons.has('config'):
+            return self._config.addons.config
+        else:
+            return "__openerp__.py"
 
     @property
     def version(self):
@@ -204,8 +211,8 @@ class OdooEnvironment:
 
     @property
     def snapshots_path(self):
-        if self._config.has('snapshots') and self._config.server.has('path'):
-            return self._config.snapshots.path
+        if self._config.has('snapshots') and self._config.snapshots.has('dir'):
+            return self._config.snapshots.dir
         else:
             return False
 
