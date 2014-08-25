@@ -23,7 +23,7 @@
 from setuptools import setup
 
 setup(name='odooenv',
-      version='2.0.10',
+      version='2.0.11',
       author='Cristian S. Rocha',
       author_email='cristian.rocha@moldeo.coop',
       maintainer='Cristian S. Rocha',
@@ -33,61 +33,6 @@ setup(name='odooenv',
       long_description="""
       OdooEnv helps you manage virtual python environments with different Odoo servers.
       It's make easy to develop, migrate and maintain different versions of Odoo servers in the same hardware box.
-
-      This package installs command 'odooenv' with these sub-commands:
-
-      $ odooenv -h
-      usage: odooenv [-h]
-                     
-                     {restore,web-stop,show,server-start,activate,pip,shell-db,web-start,create,add,init,server-stop,create-db,test,search-entity,init-db,enable,csv2xml,update,disable,search-object,list-installables,dummy,drop-db,setup,list-addons,client,list-db,install,snapshot}
-                     ...
-
-      optional arguments:
-        -h, --help            show this help message and exit
-
-      subcommands:
-        The Odoo environment administrator help you to administrate Odoo
-        environments. You can use the following commands.
-
-        {restore,web-stop,show,server-start,activate,pip,shell-db,web-start,create,add,init,server-stop,create-db,test,search-entity,init-db,enable,csv2xml,update,disable,search-object,list-installables,dummy,drop-db,setup,list-addons,client,list-db,install,snapshot}
-                              commands
-          init                Init an environment in the work path or in the
-                              declared path.
-          setup               Init an environment in the work path or in the
-                              declared path.
-          update              Update sources.
-          create              Create a new python environment.
-          add                 Add a branch with to the sources list.
-          install             Install all software in the default environment of in
-                              the declared.
-          list-installables   List all availables applications in sources.
-          list-addons         List availables addons in sources. Show all addons if
-                              not filter expression declared.
-          enable              Enabel addons on the environment. Create a symbolic
-                              link.
-          disable             Disable addons on the environment. Remove a symbolic
-                              link.
-          dummy               Create a dummy addon. Useful to create new addon.
-          test                Execute the server in test mode for this addon.
-          client              Execute the server in test mode for this addon.
-          server-start        Start the server.
-          server-stop         Stop the server.
-          web-start           Start the web client.
-          web-stop            Stop the web client.
-          search-object       Search addons with this object.
-          search-entity       Search in xml some declared entity with id
-          show                Show addon information.
-          list-db             List availables databases.
-          shell-db            Execute a shell for sql commands over the database.
-          create-db           Create a void database.
-          drop-db             Remove a database.
-          init-db             Prepare a minimalistic Odoo database.
-          snapshot            Generate a database snapshot.
-          restore             Restore a database snapshot.
-          pip                 Install Python packages in the virtual environment.
-          csv2xml             Convert CSV files to an XML files.
-          activate            Active bash instance in virtual environment.
-
       """,
       classifiers=[
           'Development Status :: 5 - Production/Stable',
