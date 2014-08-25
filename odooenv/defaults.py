@@ -22,9 +22,13 @@
 
 import getpass
 import pkg_resources
-from os.path import join
 from tools import Struct, yaml_load
-defaults_yml = pkg_resources.resource_stream(__name__, join('data','defaults.yml'))
+from os.path import join, exists, expanduser
+
+user_defaults = expanduser(join('~','odooenvrc'))
+global_defaults = pkg_resources.resource_stream(__name__, join('data','defaults.yml'))
+defaults_yml = open(user_defaults, 'r') if exists(user_defaults) else global_defaults
+print "Default file: %s" % defaults_yml.name
 defaults = yaml_load(defaults_yml)
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
