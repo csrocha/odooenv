@@ -104,7 +104,7 @@ setup(name='odooenv',
       package_dir={'odooenv': 'odooenv'},
       package_data={'odooenv': ['data/*.yml']},
       test_suite='tests',
-      install_requires=['virtualenv','psycopg2','argparse','bzr'],
+      install_requires=['virtualenv','psycopg2','argparse','bzr','yaml'],
       dependency_links=['http://pysvn.barrys-emacs.org/source_kits/pysvn-1.7.5.tar.gz'],
    )
 
