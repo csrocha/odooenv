@@ -41,14 +41,14 @@ def init(args):
 
     # Create environment.
     try:
-        oerpenv = create_environment(path, defaults.config.origin)
+        odooenv = create_environment(path, defaults.config.origin)
     except RuntimeError, s:
         print s
         return -1
 
     # Create/upgrade repository
     try:
-        for operation, local_branch_url, remote_branch_url in oerpenv.update(iterate=True):
+        for operation, local_branch_url, remote_branch_url in odooenv.update(iterate=True):
             if operation == 'update':
                 print "Updating %s from %s" % (local_branch_url, remote_branch_url)
             if operation == 'create':
@@ -63,24 +63,24 @@ def init(args):
         print "The url <%s> in the environment.yml is invalid. Modify it and try again." % remote_branch_url 
         return -1
 
-def setup(args):
+def setup(args, odooenv=None):
     """
     Write default files to environment. 
     """
-    oerpenv = OdooEnvironment(config_filename=args.config)
+    odooenv = odooenv or OdooEnvironment()
 
     for filename in defaults.default_files:
-        with open(filename % { 'root': oerpenv.env_path }, 'w') as file:
-            file.write(defaults.default_files[filename] % { 'root': oerpenv.root_path })
+        with open(filename % { 'root': odooenv.env_path }, 'w') as file:
+            file.write(defaults.default_files[filename] % { 'root': odooenv.root_path })
 
-def update(args):
+def update(args, odooenv=None):
     """
     Update sources. 
     """
-    oerpenv = OdooEnvironment()
+    odooenv = odooenv or OdooEnvironment()
 
     try:
-        for operation, local_branch_url, remote_branch_url in oerpenv.update(iterate=True, repositories=args.repositories):
+        for operation, local_branch_url, remote_branch_url in odooenv.update(iterate=True, repositories=args.repositories):
             if operation == 'update':
                 print "Updating %s from %s" % (local_branch_url, remote_branch_url)
             if operation == 'create':
@@ -102,43 +102,43 @@ def update(args):
             print m
         return -1
 
-def create(args):
+def create(args, odooenv=None):
     """
     Create a new python environment.
     """
-    oerpenv = OdooEnvironment(config_filename=args.config)
+    odooenv = odooenv or OdooEnvironment()
 
     print "Creating environment %s" % args.name[0]
 
-    oerpenv.create_python_environment(args.name[0])
+    odooenv.create_python_environment(args.name[0])
 
-def add(args):
+def add(args, odooenv=None):
     """
     Add a branch with to the sources list.
     """
-    oerpenv = OdooEnvironment(config_filename=args.config)
-    oerpenv.load()
+    odooenv = odooenv or OdooEnvironment()
+    odooenv.load()
 
-    oerpenv.add_repository(args.name[0], args.url[0])
+    odooenv.add_repository(args.name[0], args.url[0])
 
-    oerpenv.save()
+    odooenv.save()
 
-def install(args):
+def install(args, odooenv=None):
     """
     Install all software in the default environment of in the declared.
     """
-    oerpenv = OdooEnvironment()
+    odooenv = odooenv or OdooEnvironment()
 
     print "Checking for availables applications."
     itemstoinstall = [ i.lower() for i in args.itemstoinstall ]
-    installables = [ app for app in oerpenv.installables if app.name.lower() in itemstoinstall ] \
+    installables = [ app for app in odooenv.installables if app.name.lower() in itemstoinstall ] \
                     if len(itemstoinstall) > 0 \
-                    else oerpenv.installables
+                    else odooenv.installables
     installables = list(installables)
 
     if len(installables) == 0:
         print "I cant find %s in installables." % ','.join([i.name for i in installables])
-        print "Execute 'oerpenv list-installables' to view available applications to install."
+        print "Execute 'odooenv list-installables' to view available applications to install."
         print "Or please check if you define it in the list 'installables' of section 'Environment' in the 'environment.yml' file."
 
     for app in installables:
@@ -147,44 +147,42 @@ def install(args):
             print "Successfull installed"
         else:
             print "ERROR: Can't confirm the application or module is installed."
-            print "Please, execute 'oerpenv test base' to check if server is working"
+            print "Please, execute 'odooenv test base' to check if server is working"
             print "To check if client is working execute 'odoo client'"
             print "If not working, recreate the python environment and try again"
             print
 
-def list_installables(args):
+def list_installables(args, odooenv=None):
     """
     List all availables applications in sources.
     """
-    oerpenv = OdooEnvironment(config_filename=args.config)
-    oerpenv.set_python_environment(args.environment)
+    odooenv = odooenv or OdooEnvironment()
 
-    for application in oerpenv.installables:
+    for application in odooenv.installables:
         print "--"
         print "Application:", application.name
         print "Version:", application.fullname
         print "Description:", application.description
 
-def list_addons(args):
+def list_addons(args, odooenv=None):
     """
     List availables addons in sources. Show all addons if not filter expression declared.
     """
-    oerpenv = OdooEnvironment(config_filename=args.config)
-    oerpenv.set_python_environment(args.environment)
+    odooenv = odooenv or OdooEnvironment()
 
-    for addon in oerpenv.addons(args.filter_string):
-        state = 'e' if addon.is_enable(oerpenv) else 'd' if addon.is_saned(oerpenv) else 'b'
+    for addon in odooenv.addons(args.filter_string):
+        state = 'e' if addon.is_enable(odooenv) else 'd' if addon.is_saned(odooenv) else 'b'
         print "{1} {0:<25} {2:<40} {3}".format(addon.token, state, addon.name, relpath(addon.path))
 
-def enable_addon(args):
+def enable_addon(args, odooenv=None):
     """
     Enabel addons on the environment. Create a symbolic link.
     """
-    oerpenv = OdooEnvironment()
-    logger = oerpenv.logger
+    odooenv = odooenv or OdooEnvironment()
+    logger = odooenv.logger
 
     try:
-        addons_path = oerpenv.get_addonsourcepath()
+        addons_path = odooenv.get_addonsourcepath()
     except:
         if addons_path == "":
            logger.error("Server is not installed")
@@ -192,7 +190,7 @@ def enable_addon(args):
 
     ignore_filter = re.compile(args.ignore_filter) if args.ignore_filter is not None else None
 
-    addons = dict([ (addon.token, addon) for addon in oerpenv.addons()
+    addons = dict([ (addon.token, addon) for addon in odooenv.addons()
                    if ignore_filter is None or ignore_filter.search(addon.path) is None ])
     addons_set = set(addons.keys())
 
@@ -206,7 +204,7 @@ def enable_addon(args):
     c_t = len(to_install)
 
     if not lexists(addons_path):
-        print "Execute 'oerpenv install' before 'oerpenv enable'"
+        print "Execute 'odooenv install' before 'odooenv enable'"
         return -1
 
     if not to_install <= addons_set:
@@ -233,14 +231,14 @@ def enable_addon(args):
         if not ignore_depends:
             to_install.update(addon.depends)
         
-        if addon.is_enable(oerpenv):
+        if addon.is_enable(odooenv):
             print "Updating %s (%i:%s)" % (addon_name, len(to_install), addon.path)
         else:
             print "Installing %s (%i:%s)" % (addon_name, len(to_install), addon.path)
 
         yet_enabled.add(addon_name)
         to_install = to_install - yet_enabled
-        addon.enable(oerpenv, force=True)
+        addon.enable(odooenv, force=True)
 
         if 'base' in to_install:
             to_install.remove('base')
@@ -252,35 +250,34 @@ def enable_addon(args):
 
     return 0
 
-def disable_addon(args):
+def disable_addon(args, odooenv=None):
     """
     Disable addons on the environment. Remove a symbolic link.
     """
-    oerpenv = OdooEnvironment()
+    odooenv = odooenv or OdooEnvironment()
 
-    addons_path = oerpenv.get_addonsourcepath()
-    config_filename = oerpenv.addon_config_filename
+    addons_path = odooenv.get_addonsourcepath()
+    config_filename = odooenv.addon_config_filename
 
     files = iglob(join(addons_path, args.addon[0]))
 
     for addon_path in files:
         addon = Addon(join(addon_path, config_filename))
-        if addon.is_enable(oerpenv):
+        if addon.is_enable(odooenv):
             print "Removing %s." % addon.token
-            addon.disable(oerpenv)
+            addon.disable(odooenv)
         else:
             print "Addon %s not enabled." % args.addon[0]
 
     return 0
 
-def create_dummy_addon(args):
+def create_dummy_addon(args, odooenv=None):
     """
     Create a dummy addon. Useful to create new addon.
     """
-    oerpenv = OdooEnvironment(config_filename=args.config)
-    oerpenv.set_python_environment(args.environment)
+    odooenv = odooenv or OdooEnvironment()
 
-    source_path = join(oerpenv.sources_path, args.addon[0])
+    source_path = join(odooenv.sources_path, args.addon[0])
     if lexists(source_path):
         print "Exists directory %s. Please remove it if you want a new dummy addon" % source_path
         return
@@ -298,22 +295,22 @@ def create_dummy_addon(args):
             file.write(defaults.init_body)
             file.write(defaults.odoo_footer)
 
-    with open(join(source_path, oerpenv.desc_filename), 'w') as file:
+    with open(join(source_path, odooenv.desc_filename), 'w') as file:
         pp = pprint.PrettyPrinter(indent=4, stream=file)
         file.write(defaults.odoo_header)
         pp.pprint(defaults.addon_description(args.addon[0]))
         file.write(defaults.odoo_footer)
 
-    oerpenv.save()
+    odooenv.save()
 
-def test_addon(args):
+def test_addon(args, odooenv=None):
     """
     Execute the server in test mode for this addon.
     """
-    oerpenv = OdooEnvironment()
-    addons_path = oerpenv.get_addonsourcepath()
+    odooenv = odooenv or OdooEnvironment()
+    addons_path = odooenv.get_addonsourcepath()
 
-    test_config = oerpenv.get_tests()
+    test_config = odooenv.get_tests()
     tests = args.tests
     cleandb = args.clean
 
@@ -337,8 +334,8 @@ def test_addon(args):
         options = ['--stop-after-init', '--test-enable']
         options += [ '-d', dbname ]
         options += [ '--init', ','.join(addons) ]
-        if oerpenv.server_config_filename:
-            options += [ '--config', oerpenv.server_config_filename ]
+        if odooenv.server_config_filename:
+            options += [ '--config', odooenv.server_config_filename ]
         if args.debug:
             options += ['--debug', '--log-level=debug']
         else:
@@ -349,7 +346,7 @@ def test_addon(args):
             options += ['--logfile',logfile]
 
         print "Executing:\n odoo-server", " ".join(options)
-        oerpenv.execute('odoo.py', options)
+        odooenv.execute('odoo.py', options)
 
     #notify_send = distutils.spawn.find_executable('notify-send')
     #if notify_send:
@@ -363,55 +360,36 @@ def test_addon(args):
 
     print "TEST FINISHED."
 
-def start(args):
+def start(args, odooenv=None):
     """
     Start the server.
     """
-    oerpenv = OdooEnvironment()
+    odooenv = odooenv or OdooEnvironment()
 
-    snapshot = args.snapshot if args.snapshot is not None else oerpenv.snapshot
-    database =  args.database if args.database is not None else oerpenv.database
-    debug =  args.debug or oerpenv.debug
-    update =  args.update if args.update is not None else oerpenv.modules_update
-    install =  args.install if args.install is not None else oerpenv.modules_install
-    production =  args.production or oerpenv.production
-    force_start = args.force_start or False
-    language =  args.language if args.language is not None else oerpenv.language
-    extracommands =  args.extracommands if args.extracommands is not None else oerpenv.extracommands
-    save =  args.save or False
+    snapshot = args.snapshot if args.snapshot is not None else odooenv.snapshot
+    database =  args.database if args.database is not None else odooenv.database
+    debug =  args.debug or odooenv.debug
+    production =  args.production or odooenv.production
+    extracommands =  args.extracommands if args.extracommands is not None else odooenv.extracommands
 
     options = []
 
-    if not lexists(oerpenv.server_config_filename):
+    if not lexists(odooenv.server_config_filename):
         options += [ '--save' ]
-        options += [ '--addons-path', oerpenv.get_addonsourcepath() ]
-
-    if save:
-        debug = True
-        options += [ '--save', '--stop-after-init' ]
-        options += [ '--addons-path', oerpenv.get_addonsourcepath() ]
+        options += [ '--addons-path', odooenv.get_addonsourcepath() ]
 
     if database and database is not None:
         options += [ '-d', database ]
 
-    if oerpenv.server_config_filename:
-        options += [ '--config', oerpenv.server_config_filename ]
+    if odooenv.server_config_filename:
+        options += [ '--config', odooenv.server_config_filename ]
 
     if debug:
         options += [ '--debug' ]
-        #options += [ '--log-level=debug_rpc', '--logfile=%s/odoo-server.log' % oerpenv.root_path ]
+        #options += [ '--log-level=debug_rpc', '--logfile=%s/odoo-server.log' % odooenv.root_path ]
 
     if production:
-        options += [ '--without-demo=all','--test-disable' ]
-
-    if language is not None:
-        options += [ '--load-language',language,'--language',language ]
-
-    if not update is None and len(update) > 0:
-        options += sum([ ['-u', module ] for module in update ], [])
-
-    if not install is None and len(install) > 0:
-        options += sum([ ['-i', module ] for module in install ], [])
+        options += [ '--without-demo=all' ]
 
     if extracommands is not None:
         options += extracommands
@@ -421,12 +399,12 @@ def start(args):
             print "ERROR: Cant recover snapshot %s, because not defined database" % snapshot
             return -1
         print "Recovering snapshot '%s' of the database '%s'." % (snapshot, database)
-        if not tools.recover_snapshot(database, snapshot, oerpenv):
+        if not tools.recover_snapshot(database, snapshot, odooenv):
             print "ERROR: Cant recover snapshot %s." % snapshot
             return -1
 
     # Setup pid file
-    pid_filename = join(oerpenv.root_path, 'var', 'server.pid')
+    pid_filename = join(odooenv.root_path, 'var', 'server.pid')
     if not lexists(dirname(pid_filename)):
         makedirs(dirname(pid_filename))
     options += ['--pidfile', pid_filename]
@@ -436,10 +414,10 @@ def start(args):
             pid = int(''.join(open(pid_filename).readlines()))
             kill(pid, 0)
             print "A server is running or .server_pid has not been deleted at the end of the server."
-            print "Execute 'oerpenv stop' to stop the server and remove this file."
+            print "Execute 'odooenv stop' to stop the server and remove this file."
             return -1
         print "Running with options: %s" % ' '.join(options)
-        oerpenv.execute('odoo.py', options, no_wait=not debug)
+        odooenv.execute('odoo.py', options, no_wait=not debug)
     except KeyboardInterrupt:
         print "KeyboardInterrupt event."
     except OSError, m:
@@ -448,20 +426,20 @@ def start(args):
         print "ERROR: %s" % m
         traceback.print_exc(file=sys.stdout)
         print "If you move the environment please rebuild default python environment and check directories in environment.yml file."
-        print "If all ok, be sure you executed 'oerpenv install' before run this command."
+        print "If all ok, be sure you executed 'odooenv install' before run this command."
 
-def stop(args):
+def stop(args, odooenv=None):
     """
     Stop the server.
     """
-    oerpenv = OdooEnvironment()
-    pid_filename = join(oerpenv.root_path, 'var', 'server.pid')
+    odooenv = odooenv or OdooEnvironment()
+    pid_filename = join(odooenv.root_path, 'var', 'server.pid')
     try:
         with open(pid_filename, 'r') as f:
             pid = int(f.readline())
         os.kill(pid, signal.SIGINT)
     except IOError, m:
-        print "No server information."
+        print "No pid information."
         print "ERROR: %s" % m
         return -1
     except OSError, m:
@@ -471,40 +449,37 @@ def stop(args):
     os.remove(pid_filename)
     return 0
 
-def search_object(args):
+def search_object(args, odooenv=None):
     """
     Search addons with this object.
     """
-    oerpenv = OdooEnvironment(config_filename=args.config)
-    oerpenv.set_python_environment(args.environment)
+    odooenv = odooenv or OdooEnvironment()
 
     print "Definition:"
-    for addon in oerpenv.addons(object_filter=args.objects[0]):
+    for addon in odooenv.addons(object_filter=args.objects[0]):
         print "%35s:%s" % (addon.token, addon.name)
 
     print "Inherited:"
-    for addon in oerpenv.addons(inherited_filter=args.objects[0]):
+    for addon in odooenv.addons(inherited_filter=args.objects[0]):
         print "%35s:%s" % (addon.token, addon.name)
  
-def search_entity(args):
+def search_entity(args, odooenv=None):
     """
     Search in xml some declared entity with id
     """
-    oerpenv = OdooEnvironment(config_filename=args.config)
-    oerpenv.set_python_environment(args.environment)
+    odooenv = odooenv or OdooEnvironment()
  
-    for addon in oerpenv.addons(entity_filter=args.entity[0]):
+    for addon in odooenv.addons(entity_filter=args.entity[0]):
         print "%35s:%s:%s" % (addon.token, addon.name, ':'.join([ e for e in addon.entity(args.entity[0])]))
         #for filename, entity, = addon.entities
 
-def show_addon(args):
+def show_addon(args, odooenv=None):
     """
     Show addon information.
     """
-    oerpenv = OdooEnvironment(config_filename=args.config)
-    oerpenv.set_python_environment(args.environment)
+    odooenv = odooenv or OdooEnvironment()
 
-    addons = dict([ (addon.token, addon) for addon in oerpenv.addons(token_filter=args.objects[0]) ])
+    addons = dict([ (addon.token, addon) for addon in odooenv.addons(token_filter=args.objects[0]) ])
     if args.objects[0] in addons:
         addon = addons[args.objects[0]]
         print "Token:", addon.token
@@ -519,7 +494,7 @@ def show_addon(args):
         print "Inhereted Objects:", ','.join(objects[1])
         print "Source:", addon.path 
 
-def list_db(args):
+def list_db(args, odooenv=None):
     """
     List availables databases.
     """
@@ -534,7 +509,7 @@ def list_db(args):
         print "Is postgres running?"
         print "ERROR: %s" % m
 
-def shell_db(args):
+def shell_db(args, odooenv=None):
     """
     Execute a shell for sql commands over the database.
     """
@@ -542,7 +517,7 @@ def shell_db(args):
     P.wait()
     pass
 
-def create_db(args):
+def create_db(args, odooenv=None):
     """
     Create a void database.
     """
@@ -552,7 +527,7 @@ def create_db(args):
         print "Is postgres running?"
         print "ERROR: %s" % m
 
-def drop_db(args):
+def drop_db(args, odooenv=None):
     """
     Remove a database.
     """
@@ -562,25 +537,24 @@ def drop_db(args):
         print "Is postgres running?"
         print "ERROR: %s" % m
 
-def init_db(args):
+def init_db(args, odooenv=None):
     """
     Prepare a minimalistic Odoo database.
     """
-    oerpenv = OdooEnvironment(config_filename=args.config)
-    oerpenv.set_python_environment(args.environment)
+    odooenv = odooenv or OdooEnvironment()
 
     try:
-        oerpenv.execute('odoo-server', ['--init', 'base', '-d', args.database[0], '--stop-after-init'])
+        odooenv.execute('odoo-server', ['--init', 'base', '-d', args.database[0], '--stop-after-init'])
     except KeyboardInterrupt:
         print "KeyboardInterrupt event."
     except OSError, m:
         print "Error in the environment."
         print "ERROR: %s" % m
         print "If you move the environment please rebuild default python environment and check directories in environment.yml file."
-        print "If all ok, be sure you executed 'oerpenv install' before run this command."
+        print "If all ok, be sure you executed 'odooenv install' before run this command."
     pass
 
-def dump_db(args):
+def dump_db(args, odooenv=None):
     """
     Create a backup file of a database.
     """
@@ -593,14 +567,20 @@ def dump_db(args):
     P.wait()
     pass
 
-def snapshot(args):
+def clone(args, odooenv=None):
+    """
+    Clone environments.
+    """
+    pass
+
+def snapshot(args, odooenv=None):
     """
     Generate a database snapshot.
     """
-    oerpenv = OdooEnvironment()
-    snapshots = oerpenv.snapshots_path
+    odooenv = odooenv or OdooEnvironment()
+    snapshots = odooenv.snapshots_path
 
-    dbname = args.database[0]
+    dbname = args.database
     snapshot_name = args.name
     outfile = join(snapshots, "%s_%s.dump" % (dbname, snapshot_name))
     
@@ -609,12 +589,12 @@ def snapshot(args):
     if r:
         print "ERROR: Cant dump the snapshot."
  
-def restore(args):
+def restore(args, odooenv=None):
     """
     Restore a database snapshot.
     """
-    oerpenv = OdooEnvironment(config_filename=args.config)
-    snapshots = oerpenv.snapshots_path
+    odooenv = odooenv or OdooEnvironment()
+    snapshots = odooenv.snapshots_path
 
     dbname = args.database[0]
     snapshot_name = args.name
@@ -644,12 +624,12 @@ def restore(args):
     if r:
         print "ERROR: Cant recover the snapshot."
 
-def extradite(args):
+def extradite(args, odooenv=None):
     """
     Copy database from remote/local server to local/remote server.
     """
-    oerpenv = OdooEnvironment()
-    snapshots = oerpenv.snapshots_path
+    odooenv = odooenv or OdooEnvironment()
+    snapshots = odooenv.snapshots_path
 
     operation = args.operation.pop()
     host = args.host.pop()
@@ -679,12 +659,11 @@ def extradite(args):
         
     return
 
-def pip(args):
+def pip(args, odooenv=None):
     """
     Install Python packages in the virtual environment.
     """
-    oerpenv = OdooEnvironment(config_filename=args.config)
-    oerpenv.set_python_environment(args.environment)
+    odooenv = odooenv or OdooEnvironment()
 
     command =  args.command[0] if args.command[0] in [
         'help', 'install', 'bundle', 'freeze', 'install',
@@ -696,9 +675,9 @@ def pip(args):
     if parameters is not None:
         options += parameters
 
-    pid = oerpenv.execute('pip', options, no_wait=0)
+    pid = odooenv.execute('pip', options, no_wait=0)
 
-def csv2xml(args):
+def csv2xml(args, odooenv=None):
     """
     Convert CSV files to an XML files.
     """
@@ -764,28 +743,25 @@ def csv2xml(args):
             print >> OUT, t
 
 
-def activate(args):
+def activate(args, odooenv=None):
     """
     Active bash instance in virtual environment.
     """
-    oerpenv = OdooEnvironment(config_filename=args.config)
-    oerpenv.set_python_environment(args.environment)
+    odooenv = odooenv or OdooEnvironment()
 
     print "Activating"
-    path=join(oerpenv.env_path, 'bin', 'activate')
+    path=join(odooenv.env_path, 'bin', 'activate')
     P = subprocess.Popen(['bash', path ])
     P.wait()
 
-def repath(args):
+def repath(args, odooenv=None):
     """
     Change path to enviroment scripts.
     """
-    oerpenv = OdooEnvironment(config_filename=args.config)
-    oerpenv.set_python_environment(args.environment)
+    odooenv = odooenv or OdooEnvironment()
 
     binpath_re = re.compile('^#!(.*)(bin/)(.*)$')
     linkpath_re = re.compile('^(.*)(sources/.*)$')
-
 
     print "Repathing links...",
     for root, dirs, files in os.walk("./default", topdown=False):
@@ -793,11 +769,11 @@ def repath(args):
             ori_filename = join(root,filename)
             if islink(ori_filename):
                 ori_link = abspath(join(dirname(ori_filename), readlink(ori_filename)))
-                if ori_link.find(oerpenv.env_path):
+                if ori_link.find(odooenv.env_path):
                     m = linkpath_re.search(ori_link)
                     if m:
                         ori_path, ori_link = m.groups()
-                        tar_link = abspath(join(oerpenv.root_path, ori_link))
+                        tar_link = abspath(join(odooenv.root_path, ori_link))
                         remove(ori_filename)
                         symlink(tar_link, ori_filename)
     print "Done"
@@ -811,7 +787,7 @@ def repath(args):
                 m = binpath_re.search(l)
                 if m:
                     ori_path, default_bin, bin_file = m.groups()
-                    new_first_line =  "#!%s\n" % abspath(join(oerpenv.env_path, default_bin, bin_file))
+                    new_first_line =  "#!%s\n" % abspath(join(odooenv.env_path, default_bin, bin_file))
                     tar_filename = join(root, filename + '.new')
                     with open(tar_filename, 'w') as df:
                         df.write(new_first_line)
@@ -828,6 +804,23 @@ def repath(args):
                     f.close()
     print "Done"
 
+def deploy(args, odooenv=None):
+    """
+    Update source codes and backup assigned database.
+    """
+    odooenv = odooenv or OdooEnvironment()
+
+    args.repositories = [] # Update all repositories.
+    args.snapshot=None # Not need recover snapshot.
+    args.debug=None
+    args.production=True
+    args.extracommands=[]
+
+    stop(args, odooenv)
+    snapshot(args, odooenv)
+    update(args, odooenv)
+    start(args, odooenv)
+ 
 def main():
     parser = argparse.ArgumentParser()
 
@@ -965,22 +958,12 @@ def main():
                              help='Database name.')
     parser_start.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
                              help='Environment configuration file.')
-    parser_start.add_argument('--save', '-v', action='store_true',
-                             help='Save initial configuration file.')
     parser_start.add_argument('--snapshot', '-s', metavar='snapshot', type=str, nargs='?',
                              help='Snapshot of the database.')
     parser_start.add_argument('--debug', '-d', action='store_true',
                              help='Start server in debug mode. Stop until an exception.')
-    parser_start.add_argument('--force-start', '-f', action='store_true',
-                             help='Forces server start. Does not check whether a process file is present or not.')
     parser_start.add_argument('--production', '-p', action='store_true',
                              help='Start server in production mode. No test and demos.')
-    parser_start.add_argument('--update', '-u', metavar='MODULES', type=str, nargs='*',
-                             help='Update modules')
-    parser_start.add_argument('--install', '-i', metavar='MODULES', type=str, nargs='*',
-                             help='Install modules')
-    parser_start.add_argument('--language', '-l', metavar='LANG', type=str, nargs='?',
-                             help='Default Language')
     parser_start.add_argument('extracommands', nargs='*', help='Commands direct to odoo-server')
     parser_start.set_defaults(func=start,
                              config=defaults.config.filename,
@@ -1060,13 +1043,25 @@ def main():
 
     # The snapshot command
     parser_snapshot = subparsers.add_parser('snapshot', help=snapshot.__doc__)
-    parser_snapshot.add_argument('database', metavar='database', type=str, nargs=1,
+    parser_snapshot.add_argument('database', metavar='database', type=str, nargs='?',
                              help='Database name.')
     parser_snapshot.add_argument('name', metavar='name', type=str, nargs='?',
                              help='Snapshot name.')
     parser_snapshot.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
                              help='Environment configuration file.')
     parser_snapshot.set_defaults(func=snapshot,
+                             name=datetime.datetime.today().strftime("%Y%m%d%H%M%S"),
+                             config=defaults.config.filename)
+
+    # The deploy command
+    parser_deploy = subparsers.add_parser('deploy', help=deploy.__doc__)
+    parser_deploy.add_argument('database', metavar='database', type=str, nargs='?',
+                             help='Database name.')
+    parser_deploy.add_argument('name', metavar='name', type=str, nargs='?',
+                             help='Deploy name.')
+    parser_deploy.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
+                             help='Environment configuration file.')
+    parser_deploy.set_defaults(func=deploy,
                              name=datetime.datetime.today().strftime("%Y%m%d%H%M%S"),
                              config=defaults.config.filename)
 
@@ -1144,14 +1139,14 @@ def main():
         print "ERROR:", m.message
         print """
 Go to a environment directory where environment.yml exists, or
-create one using 'oerpenv init' command.
+create one using 'odooenv init' command.
 """
         return -1
     except NoVersionAvailableError, m:
         print "ERROR:", m.message
         print """
 I can't manage this version. Please advise to developers using
-this link http://launchpad.org/oerpenv/bugs. 
+this link http://launchpad.org/odooenv/bugs. 
 
 
 """
