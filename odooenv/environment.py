@@ -297,7 +297,10 @@ class OdooEnvironment:
         """
         Return dict of tests.
         """
-        return self._config.test.as_dict()
+        if self._config.has('test'):
+            return self._config.test.as_dict()
+        else:
+            return []
 
     def get_addonsourcepath(self):
         """
