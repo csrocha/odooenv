@@ -20,6 +20,7 @@ import bzrlib
 import logging
 from urlparse import urlparse
 from urllib import urlretrieve
+from time import sleep
 from odooenv import *
 
 try:
@@ -434,20 +435,22 @@ def stop(args, odooenv=None):
     """
     odooenv = odooenv or OdooEnvironment()
     pid_filename = join(odooenv.root_path, 'var', 'server.pid')
-    try:
-        with open(pid_filename, 'r') as f:
-            pid = int(f.readline())
-        os.kill(pid, signal.SIGINT)
-    except IOError, m:
+    if lexists(pid_filename):
+        try:
+            with open(pid_filename, 'r') as f:
+                pid = int(f.readline())
+            os.kill(pid, signal.SIGTERM)
+            sleep(3)
+            #os.kill(pid, signal.SIGKILL)
+            return 0
+        except OSError, m:
+            print "No server running."
+            return -1
+        finally:
+            os.remove(pid_filename)
+    else:
         print "No pid information."
-        print "ERROR: %s" % m
         return -1
-    except OSError, m:
-        print "No server running."
-        print "ERROR: %s" % m
-        return -1
-    os.remove(pid_filename)
-    return 0
 
 def search_object(args, odooenv=None):
     """
@@ -804,6 +807,60 @@ def repath(args, odooenv=None):
                     f.close()
     print "Done"
 
+def views(args, odooenv=None):
+    """
+    Update source codes and backup assigned database.
+    """
+    odooenv = odooenv or OdooEnvironment()
+
+    database = args.database[0]
+    outfile = open(args.outfile[0], 'w')
+    labels = ['V.id', 'V.name', 'V.arch', 'V.field_parent', 'V.inherit_id',
+              'V.model_data_id', 'V.priority', 'V.application', 'V.mode', 'V.model', 'V.type',
+              'MD.module', 'MD.name', 'MDI.module', 'MDI.name',
+             ]
+    fils = ["""MD.module in ('%s')""" % '\',\''.join(args.modules) if args.modules else None,
+            """V.model in ('%s')""" % '\',\''.join(args.models) if args.models else None]
+    fils = [ f for f in fils if f is not None]
+    fils = 'where %s' % (' and '.join(fils)) if fils else ''
+    try:
+        conn = psycopg2.connect(database=database)
+        cur = conn.cursor()
+        cur.execute("""
+                    select %s
+                    from ir_ui_view as V
+                    left join ir_model_data as MD on (MD.model='ir.ui.view' and MD.res_id = V.id)
+                    left join ir_model_data as MDI on (MDI.model='ir.ui.view' and MDI.res_id = V.inherit_id)
+                    %s
+                    """ % (','.join(labels), fils))
+        rows = cur.fetchall()
+        for row in rows:
+            lrow = dict(zip([l.replace('.','_') for l in labels], row))
+            lrow['__inherit'] = \
+                    """<field name="inherit_id" ref="{MDI_module}.{MDI_name}"/>\n""".format(**lrow) if lrow['V_inherit_id'] else ''
+            outline = """
+<record id="{MD_module}.{MD_name}" model="ir.ui.view">
+   <field name="model">{V_model}</field>
+   <field name="name">{V_name}</field>
+   <!--field name="field_parent">{V_field_parent}</field-->
+   <!--field name="model_data_id">{V_model_data_id}</field-->
+   <!--field name="priority">{V_priority}</field-->
+   <!--field name="application">{V_application}</field-->
+   <!--field name="mode">{V_mode}</field-->
+   <!--field name="type">{V_type}</field-->
+   {__inherit}
+   <field name="arch" type="xml"/>
+{V_arch}
+   </field>
+</record>
+            """.format(**lrow)
+            outfile.write(outline)
+
+
+    except psycopg2.OperationalError, m:
+        print "Is postgres running?"
+        print "ERROR: %s" % m
+
 def deploy(args, odooenv=None):
     """
     Update source codes and backup assigned database.
@@ -1114,6 +1171,21 @@ def main():
                              config=defaults.config.filename,
                              id_template=None)
 
+    # Generate views xml files
+    parser_views = subparsers.add_parser('views', help=views.__doc__)
+    parser_views.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
+                             help='Environment configuration file.')
+    parser_views.add_argument('database', metavar='database', type=str, nargs=1,
+                             help='Database origin')
+    parser_views.add_argument('outfile', metavar='outfile', type=str, nargs=1,
+                             help='XML destination file')
+    parser_views.add_argument('--modules', '-m', metavar='modules', type=str, nargs='*',
+                             help='List of modules to get views')
+    parser_views.add_argument('--models', '-M', metavar='models', type=str, nargs='*',
+                             help='List of models to get views')
+    parser_views.set_defaults(func=views,
+                             config=defaults.config.filename)
+
     # The activate command
     parser_activate = subparsers.add_parser('activate', help=activate.__doc__)
     parser_activate.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
@@ -1122,7 +1194,7 @@ def main():
                              config=defaults.config.filename,
                              parameters=None)
 
-    # The activate command
+    # The repath command
     parser_repath = subparsers.add_parser('repath', help=repath.__doc__)
     parser_repath.add_argument('--config', '-c', metavar='config', type=str, nargs='?',
                              help='Environment configuration file.')
