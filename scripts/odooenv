@@ -338,7 +338,7 @@ def test_addon(args, odooenv=None):
         if odooenv.server_config_filename:
             options += [ '--config', odooenv.server_config_filename ]
         if args.debug:
-            options += ['--debug', '--log-level=debug']
+            options += ['--debug', '--log-level=debug', '--workers=0']
         else:
             options += ['--log-level=test']
         if args.commit:
