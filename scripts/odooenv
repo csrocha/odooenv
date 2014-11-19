@@ -189,6 +189,11 @@ def enable_addon(args, odooenv=None):
            logger.error("Server is not installed")
            return
 
+    if not addons_path:
+        logger.error("Check if PYTHON_EGG_CACHE if set in writeable directory.\nYour can use:\nexport PYTHON_EGG_CACHE=%s/.python-eggs" % odooenv.root)
+        print "Is PYTHON_EGG_CACHE defined? Check Log."
+        return
+
     ignore_filter = re.compile(args.ignore_filter) if args.ignore_filter is not None else None
 
     addons = dict([ (addon.token, addon) for addon in odooenv.addons()
