@@ -42,7 +42,7 @@ def init(args):
 
     # Create environment.
     try:
-        odooenv = create_environment(path, defaults.config.origin)
+        odooenv = create_environment(path, config)
     except RuntimeError, s:
         print s
         return -1
