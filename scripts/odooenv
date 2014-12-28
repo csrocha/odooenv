@@ -445,7 +445,8 @@ def stop(args, odooenv=None):
             print "No server running."
             return -1
         finally:
-            os.remove(pid_filename)
+            if lexists(pid_filename):
+                os.remove(pid_filename)
     else:
         print "No pid information."
         return -1
