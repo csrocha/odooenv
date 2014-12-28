@@ -118,12 +118,12 @@ class OdooEnvironment:
                 else:
                     repository.update()
 
-    def create_python_environment(self, name, env):
+    def reset_python_environment(self):
         """
-        Create a new python environment with name
+        Reset the python environment.
         """
-        path = env.dir
-        if exists(path): return False
+        path = self.root_path
+        if not exists(path): return False
         virtualenv.logger = virtualenv.Logger([(virtualenv.Logger.level_for_integer(2), sys.stdout)])
         virtualenv.create_environment(path,site_packages=False)
         return True
@@ -131,10 +131,6 @@ class OdooEnvironment:
     @property
     def logger(self):
         return self._logger
-
-    @property
-    def binary_path(self):
-        return join(self.env_path, 'bin')
 
     @property
     def installables(self):
