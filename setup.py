@@ -23,7 +23,7 @@
 from setuptools import setup
 
 setup(name='odooenv',
-      version='2.1.2',
+      version='2.1.3',
       author='Cristian S. Rocha',
       author_email='cristian.rocha@moldeo.coop',
       maintainer='Cristian S. Rocha',
