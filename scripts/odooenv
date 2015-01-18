@@ -247,6 +247,9 @@ def enable_addon(args, odooenv=None):
     if c_t > c:
             print "Can't install %s modules" % (c_t - c)
 
+    for server in odooenv.servers:
+        server.update_module_list()
+
     return 0
 
 def disable_addon(args, odooenv=None):

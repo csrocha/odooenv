@@ -36,6 +36,8 @@ from addon import Addon
 from repository import Repository
 from pwd import getpwnam
 from urllib import urlretrieve
+from server import OdooServer
+import ConfigParser
 
 try:
     from subprocess import DEVNULL # py3k
@@ -273,6 +275,21 @@ class OdooEnvironment:
         r = self._config.get('Modules.install', '')
         r = [ s for s in r.split(',') if not s == '' ]
         return r
+
+    @property
+    def servers(self):
+        cfg = self.server_config_filename
+        cp = ConfigParser.ConfigParser()
+        cp.readfp(open(cfg))
+
+        server = cp.get('options', 'xmlrpc_interface') or 'localhost'
+        port = cp.get('options', 'xmlrpc_port') or '8069'
+
+        for tag,db  in self._config.get('databases', []):
+            name = db.name
+            user = db.user
+            password = db.password
+            yield OdooServer(db.name, server, port, db.user, db.password)
 
     def execute(self, command, args, no_wait=False, check_for_termination=False):
         """
