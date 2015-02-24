@@ -2,7 +2,7 @@
 ##############################################################################
 #
 #    OdooEnv, Odoo Environment Administrator
-#    Copyright (C) 2011-2015 Coop Trab Moldeo Interactive 
+#    Copyright (C) 2011-2015 Coop Trab Moldeo Interactive
 #    (<http://www.moldeointeractive.com.ar>).
 #
 #    This program is free software: you can redistribute it and/or modify
@@ -23,10 +23,11 @@
 from os.path import abspath, basename, dirname, join, exists, lexists, realpath
 import os
 
+
 class Addon:
         def __init__(self, addon_config_path):
             """
-            Init an addon class information 
+            Init an addon class information
             """
             self.config_path = abspath(addon_config_path)
             self.path = dirname(self.config_path)
@@ -61,7 +62,7 @@ class Addon:
             Return addon long description.
             """
             self.read_description()
-            return self._description.get('description','')
+            return self._description.get('description', '')
 
         @property
         def depends(self):
@@ -69,7 +70,7 @@ class Addon:
             Return addon list with the addon depends.
             """
             self.read_description()
-            return self._description.get('depends',[])
+            return self._description.get('depends', [])
 
         @property
         def website(self):
@@ -77,7 +78,7 @@ class Addon:
             Return the website of the addon.
             """
             self.read_description()
-            return self._description.get('website',None)
+            return self._description.get('website', None)
 
         @property
         def author(self):
@@ -85,7 +86,7 @@ class Addon:
             Return the author of the addon.
             """
             self.read_description()
-            return self._description.get('author',None)
+            return self._description.get('author', None)
 
         @property
         def version(self):
@@ -93,7 +94,7 @@ class Addon:
             Return the version of the addon.
             """
             self.read_description()
-            return self._description.get('version',None)
+            return self._description.get('version', None)
 
         def environment_path(self, environment):
             """
@@ -107,14 +108,18 @@ class Addon:
             Return true if the addon is enabled in the environment.
             """
             path = self.environment_path(environment)
-            return exists(path) and exists(realpath(path)) and dirname(realpath(path)) != self.path
+            return (exists(path) and
+                    exists(realpath(path)) and
+                    dirname(realpath(path)) != self.path)
 
         def is_saned(self, environment):
             """
             Return true if the addon is saned.
             """
             path = self.environment_path(environment)
-            return lexists(path) and os.path.exists(realpath(path)) or not lexists(path)
+            return (lexists(path) and
+                    os.path.exists(realpath(path)) or
+                    not lexists(path))
 
         def enable(self, environment, force=False):
             """
@@ -128,9 +133,7 @@ class Addon:
             is_link = os.path.islink(where_install)
 
             if is_link:
-                if ((is_exists and force) or \
-                    (is_enabled and force) or \
-                    (not is_saned)):
+                if (force and (is_exists or is_enabled) or not is_saned):
                     os.remove(where_install)
                 elif is_enabled and not force:
                     return False
@@ -156,15 +159,16 @@ class Addon:
         @property
         def objects(self):
             """
-            Return a duple with a list of objects declared and inherited in the addon.
+            Return a duple with a list of objects declared and inherited.
             """
-            import re
+            from re import compile as re_c
             objects = set()
             inherited = set()
-            for filename, name, match in self.search( 
-                {'object':re.compile(r'^\s*_name\s*=\s*["\']([a-z][\w\.]*)["\']'),
-                 'inherit':re.compile(r'^\s*_inherit\s*=\s*["\']([a-z][\w\.]*)["\']'),},
-                re.compile(r'^.*\.py$')
+            object_re = re_c(r'^\s*_name\s*=\s*["\']([a-z][\w\.]*)["\']')
+            inherited_re = re_c(r'^\s*_inherit\s*=\s*["\']([a-z][\w\.]*)["\']')
+            for filename, name, match in self.search(
+                {'object': object_re, 'inherit': inherited_re},
+                re_c(r'^.*\.py$')
             ):
                 if name == 'object':
                     objects.update(match)
@@ -179,9 +183,8 @@ class Addon:
             """
             import re
             record = set()
-            items = {}
-            for filename, name, match in self.search( 
-                {'record':re.compile(r'id\s*=\s*["\']([^"]*)["\']'), },
+            for filename, name, match in self.search(
+                {'record': re.compile(r'id\s*=\s*["\']([^"]*)["\']'), },
                 re.compile(r'^.*\.xml$')
             ):
                 if name == 'record':
@@ -193,14 +196,22 @@ class Addon:
             Return a entity information.
             """
             import re
-            record = set()
-            items = {}
-            for filename, name, match in self.search( 
-                {'record':re.compile(r'id\s*=\s*["\']([^"]*)["\']'), },
+            for filename, name, match in self.search(
+                {'record': re.compile(r'id\s*=\s*["\']([^"]*)["\']'), },
                 re.compile(r'^.*\.xml$')
             ):
                 if name == 'record' and entity in match:
                     yield filename
+
+        def install_externals(self, environment):
+            """
+            Install external dependencies.
+            """
+            dep = self._description.get('external_dependencies', False)
+            if dep and 'python' in dep:
+                for module in dep['python']:
+                    pid = environment.execute('pip', ['install', module],
+                                              no_wait=0)
 
         def search(self, re_patterns, re_file):
             """
@@ -208,14 +219,17 @@ class Addon:
             """
             search_files = set()
             for p, ds, fs in os.walk(self.path):
-                    search_files.update(set([ join(p,f) for f in fs if re_file.search(f)]))
+                    search_files.update(set([
+                        join(p, f) for f in fs if re_file.search(f)
+                    ]))
 
             for filename in search_files:
                 with open(filename) as file:
                     lines = file.readlines()
                     for re_name, re_pattern in re_patterns.items():
-                        matchs = [ re_pattern.search(line) for line in lines ]
-                        matchs = [ match.group(1) for match in matchs if match != None ]
+                        matchs = [re_pattern.search(line) for line in lines]
+                        matchs = [match.group(1) for match in matchs
+                                  if match is not None]
                         if len(matchs) > 0:
                             yield filename, re_name, matchs
 

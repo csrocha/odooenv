@@ -122,11 +122,12 @@ class GITRepository(RepositoryBase):
                                        branch=branch)
 
     def update(self):
-        git_command = ['git']
-        git_command.extend(['-C', self.local_path])
-        git_command.extend(['checkout'])
-        git_command.extend([str(self.branch)])
-        subprocess.call(git_command)
+        if self.branch:
+            git_command = ['git']
+            git_command.extend(['-C', self.local_path])
+            git_command.extend(['checkout'])
+            git_command.extend([str(self.branch)])
+            subprocess.call(git_command)
 
         git_command = ['git']
         git_command.extend(['-C', self.local_path])
