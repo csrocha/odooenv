@@ -2,7 +2,7 @@
 ##############################################################################
 #
 #    OERPEnv, OpenERP Environment Administrator
-#    Copyright (C) 2011-2015 Coop Trab Moldeo Interactive 
+#    Copyright (C) 2011-2015 Coop Trab Moldeo Interactive
 #    (<http://www.moldeointeractive.com.ar>).
 #
 #    This program is free software: you can redistribute it and/or modify
@@ -22,19 +22,16 @@
 
 from bzrlib.plugin import load_plugins
 from bzrlib.branch import Branch
-from bzrlib import workingtree
-from os.path import abspath, basename, dirname, join, exists
-import imp
-import os
+from os.path import exists
 import re
 import subprocess
-import StringIO
 
 try:
     import pysvn
     without_svn = False
 except:
     without_svn = True
+
 
 class RepositoryBase:
     def __init__(self, local_path, remote_url, branch=None):
@@ -56,43 +53,48 @@ class RepositoryBase:
 
     _url_re_ = []
 
+
 class BazaarRepository(RepositoryBase):
     def __init__(self, local_path, remote_url, branch=None):
-        self = RepositoryBase.__init__(self, local_path, remote_url, branch=branch)
+        self = RepositoryBase.__init__(self,
+                                       local_path,
+                                       remote_url,
+                                       branch=branch)
         load_plugins()
 
     def update(self):
         from bzrlib import workingtree
         wt = workingtree.WorkingTree.open(self.local_path)
         wt.update()
-        #remote_branch = Branch.open(self.remote_url)
-        #wt.pull(remote_branch)
 
     def checkout(self):
-        #import pdb; pdb.set_trace()
         remote_branch = Branch.open(self.remote_url)
-        tree = remote_branch.create_checkout(self.local_path, lightweight=True)
-        #local_branch = remote_branch.bzrdir.sprout(
-        #        self.local_path).open_branch()
+        remote_branch.create_checkout(self.local_path, lightweight=True)
 
     _url_re_ = [
         re.compile('^lp:.*$'),
         re.compile('^bzr+ssh:.*')
     ]
 
-def ssl_server_trust_prompt( trust_dict ):
+
+def ssl_server_trust_prompt(trust_dict):
     # http://pysvn.tigris.org/docs/pysvn_prog_ref.html#pysvn_client_callback_ssl_server_trust_prompt
     for v in trust_dict.items():
-       print "%s:%s" % v
+        print "%s:%s" % v
     a = raw_input("Your trust in the certificate? ")
     return a in 'Yesyes', trust_dict['failures'], True
+
 
 class SVNRepository(RepositoryBase):
     def __init__(self, local_path, remote_url, branch=None):
         if without_svn:
-            raise RuntimeError("You need install PySVN to use SVN capabilities.")
+            raise RuntimeError(
+                "You need install PySVN to use SVN capabilities.")
 
-        self = RepositoryBase.__init__(self, local_path, remote_url,branch=branch)
+        self = RepositoryBase.__init__(self,
+                                       local_path,
+                                       remote_url,
+                                       branch=branch)
         load_plugins()
 
     def update(self):
@@ -111,15 +113,26 @@ class SVNRepository(RepositoryBase):
         re.compile('^svn+ssh:.*'),
     ]
 
+
 class GITRepository(RepositoryBase):
     def __init__(self, local_path, remote_url, branch=None):
-        self = RepositoryBase.__init__(self, local_path, remote_url, branch=branch)
+        self = RepositoryBase.__init__(self,
+                                       local_path,
+                                       remote_url,
+                                       branch=branch)
 
     def update(self):
-        olddir = os.getcwd()
-        os.chdir(self.local_path)
-        subprocess.call(['git', 'pull'])
-        os.chdir(olddir)
+        git_command = ['git']
+        git_command.extend(['-C', self.local_path])
+        git_command.extend(['checkout'])
+        git_command.extend([str(self.branch)])
+        subprocess.call(git_command)
+
+        git_command = ['git']
+        git_command.extend(['-C', self.local_path])
+        git_command.extend(['pull'])
+        git_command.extend(['--depth', '1'])
+        subprocess.call(git_command)
 
     def checkout(self):
         git_command = ['git', 'clone']
@@ -134,11 +147,11 @@ class GITRepository(RepositoryBase):
         re.compile('^git@.*$'),
     ]
 
+
 def Repository(local_path, branch_url, branch=None):
-    classes = [ BazaarRepository, SVNRepository, GITRepository ]
+    classes = [BazaarRepository, SVNRepository, GITRepository]
     for c in classes:
-        if any([ ure.search(branch_url) is not None for ure in c._url_re_ ]):
+        if any([ure.search(branch_url) is not None for ure in c._url_re_]):
             return c(local_path, branch_url, branch=branch)
-        
+
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
- 
