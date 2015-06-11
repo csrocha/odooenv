@@ -34,10 +34,11 @@ except:
 
 
 class RepositoryBase:
-    def __init__(self, local_path, remote_url, branch=None):
+    def __init__(self, local_path, remote_url, branch=None, shallow=False):
         self.local_path = local_path
         self.remote_url = remote_url
         self.branch = branch
+        self.shallow = shallow
 
     def update(self):
         raise NotImplementedError
@@ -55,11 +56,12 @@ class RepositoryBase:
 
 
 class BazaarRepository(RepositoryBase):
-    def __init__(self, local_path, remote_url, branch=None):
+    def __init__(self, local_path, remote_url, branch=None, shallow=False):
         self = RepositoryBase.__init__(self,
                                        local_path,
                                        remote_url,
-                                       branch=branch)
+                                       branch=branch,
+                                       shallow=shallow)
         load_plugins()
 
     def update(self):
@@ -86,7 +88,7 @@ def ssl_server_trust_prompt(trust_dict):
 
 
 class SVNRepository(RepositoryBase):
-    def __init__(self, local_path, remote_url, branch=None):
+    def __init__(self, local_path, remote_url, branch=None, shallow=False):
         if without_svn:
             raise RuntimeError(
                 "You need install PySVN to use SVN capabilities.")
@@ -94,7 +96,8 @@ class SVNRepository(RepositoryBase):
         self = RepositoryBase.__init__(self,
                                        local_path,
                                        remote_url,
-                                       branch=branch)
+                                       branch=branch,
+                                       shallow=shallow)
         load_plugins()
 
     def update(self):
@@ -115,11 +118,12 @@ class SVNRepository(RepositoryBase):
 
 
 class GITRepository(RepositoryBase):
-    def __init__(self, local_path, remote_url, branch=None):
+    def __init__(self, local_path, remote_url, branch=None, shallow=False):
         self = RepositoryBase.__init__(self,
                                        local_path,
                                        remote_url,
-                                       branch=branch)
+                                       branch=branch,
+                                       shallow=shallow)
 
     def update(self):
         if self.branch:
@@ -132,12 +136,14 @@ class GITRepository(RepositoryBase):
         git_command = ['git']
         git_command.extend(['-C', self.local_path])
         git_command.extend(['pull'])
-        git_command.extend(['--depth', '1'])
+        if self.shallow:
+            git_command.extend(['--depth', '1'])
         subprocess.call(git_command)
 
     def checkout(self):
         git_command = ['git', 'clone']
-        git_command.extend(['--depth', '1', '--single-branch'])
+        if self.shallow:
+            git_command.extend(['--depth', '1', '--single-branch'])
         if self.branch:
             git_command.extend(['--branch', str(self.branch)])
         git_command.extend([self.remote_url, self.local_path])
@@ -149,10 +155,10 @@ class GITRepository(RepositoryBase):
     ]
 
 
-def Repository(local_path, branch_url, branch=None):
+def Repository(local_path, branch_url, branch=None, shallow=False):
     classes = [BazaarRepository, SVNRepository, GITRepository]
     for c in classes:
         if any([ure.search(branch_url) is not None for ure in c._url_re_]):
-            return c(local_path, branch_url, branch=branch)
+            return c(local_path, branch_url, branch=branch, shallow=shallow)
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

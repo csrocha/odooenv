@@ -26,36 +26,40 @@ import sys
 import time
 import logging
 import logging.config
-from os import makedirs, walk, symlink, mkdir, listdir
-from os.path import abspath, join, exists, lexists, dirname, basename
+from os import makedirs, walk, listdir
+from os.path import abspath, join, exists, dirname, basename
 from installable import Installable
 from odooenv import tools
-from odooenv.defaults import defaults
 from virtualenv import subprocess
 from addon import Addon
 from repository import Repository
-from pwd import getpwnam
 from urllib import urlretrieve
 
 try:
-    from subprocess import DEVNULL # py3k
+    from subprocess import DEVNULL
 except ImportError:
     import os
     DEVNULL = open(os.devnull, 'wb')
 
 config_filename = 'environment.yml'
 
+
 class NoEnvironmentConfigFileError(RuntimeError):
+
     def __init__(self, filepath):
         self.filepath = filepath
         self.message = "No environment config file available (%s)" % filepath
 
+
 class NoVersionAvailableError(RuntimeError):
+
     def __init__(self, version):
         self.version = version
         self.message = "No version available (%s)" % version
 
+
 class OdooEnvironment:
+
     def __init__(self, path="."):
         """
         Create an instance of OdooEnvironment class.
@@ -69,8 +73,10 @@ class OdooEnvironment:
 
     def setup(self):
         # Create all nescesary dirs
-        for d in [ join(self.root_path, d) for d in self._config.take(['dir'])['dir']]:
-            if not exists(d): makedirs(d)
+        for d in [join(self.root_path, d)
+                  for d in self._config.take(['dir'])['dir']]:
+            if not exists(d):
+                makedirs(d)
 
     def load(self):
         """
@@ -79,10 +85,15 @@ class OdooEnvironment:
         if not exists(self.config_filename):
             raise NoEnvironmentConfigFileError(self.config_filename)
 
-        self._config = tools.load_configuration(self.config_filename, defaults={'root': self.root_path})
+        self._config = tools.load_configuration(
+            self.config_filename, defaults={'root': self.root_path})
         if self._config.has('logging'):
-            for d in [ dirname(join(self.root_path, f)) for f in self._config.logging.take(['filename'])['filename']]:
-                if not exists(d): makedirs(d)
+            for d in [
+                dirname(join(self.root_path, f))
+                for f in self._config.logging.take(['filename'])['filename']
+            ]:
+                if not exists(d):
+                    makedirs(d)
             logging.config.dictConfig(self._config.logging.as_dict())
             self._logger = logging.getLogger('odooenv')
         else:
@@ -93,7 +104,8 @@ class OdooEnvironment:
         Save configuration file.
         """
         if not init:
-            self._config['Environment.environments'] = ','.join(self.environments)
+            self._config['Environment.environments'] = (
+                ','.join(self.environments))
         tools.save_configuration(self._config, self.config_filename)
 
     def update(self, iterate=False, repositories=[]):
@@ -123,9 +135,11 @@ class OdooEnvironment:
         Reset the python environment.
         """
         path = self.root_path
-        if not exists(path): return False
-        virtualenv.logger = virtualenv.Logger([(virtualenv.Logger.level_for_integer(2), sys.stdout)])
-        virtualenv.create_environment(path,site_packages=False)
+        if not exists(path):
+            return False
+        virtualenv.logger = virtualenv.Logger(
+            [(virtualenv.Logger.level_for_integer(2), sys.stdout)])
+        virtualenv.create_environment(path, site_packages=False)
         return True
 
     @property
@@ -136,43 +150,41 @@ class OdooEnvironment:
     def installables(self):
         bin_path = join(self.root_path, 'bin')
         src_path = self._config.sources.dir
-        r = [ Installable(r.method, join(src_path, n), bin_path, logger=self._logger) for n, r in self._config.sources.repos if r.has('method') ]
+        r = [Installable(r.method, join(src_path, n),
+                         bin_path, logger=self._logger)
+             for n, r in self._config.sources.repos if r.has('method')]
         return r
 
     @property
     def modules(self):
-        return [ Installable(m, is_application=False) for m in self._config['Environment.modules'].split(',') ]
+        return [Installable(m, is_application=False)
+                for m in self._config['Environment.modules'].split(',')]
 
-    def addons(self, token_filter=None, object_filter=None, inherited_filter=None, entity_filter=None):
+    def addons(self, token_filter=None, object_filter=None,
+               inherited_filter=None, entity_filter=None):
         config_filename = self.addon_config_filename
 
-        if not token_filter is None:
-            filter_re = re.compile(token_filter)
-            filter_t = lambda s: filter_re.search(s) != None
-        else:
-            filter_t = lambda s: True
+        filter_re = re.compile(token_filter) if token_filter else None
 
-        if not object_filter is None:
-            filter_o = lambda a: object_filter in a.objects[0]
-        else:
-            filter_o = lambda a: True
+        def filter_name(p):
+            return filter_re.search(p) is not None if token_filter else True
 
-        if not inherited_filter is None:
-            filter_i = lambda a: inherited_filter in a.objects[1]
-        else:
-            filter_i = lambda a: True
-
-        if not entity_filter is None:
-            filter_e = lambda a: entity_filter in a.entities
-        else:
-            filter_e = lambda a: True
+        def filter_addon(a):
+            return (
+                (object_filter in a.objects[0] if object_filter else True) and
+                (entity_filter in a.entities if entity_filter else True) and
+                (inherited_filter in a.objects[1] if inherited_filter else True)
+            )
 
         for path, ds, fs in walk(self.sources_path, followlinks=True):
-            if config_filename in fs and '__init__.py' in fs and filter_t(basename(path)):
+            if (
+                config_filename in fs and
+                '__init__.py' in fs and
+                filter_name(basename(path))
+            ):
                 addon = Addon(join(path, config_filename))
-                if filter_o(addon) and filter_i(addon) and filter_e(addon):
+                if (filter_addon(addon)):
                     yield addon
-                ds = []
 
     @property
     def addon_config_filename(self):
@@ -187,7 +199,9 @@ class OdooEnvironment:
 
     @property
     def repositories(self):
-        return dict([ (n, Repository(join(self.sources_path, n), r.url, r.get('branch'))) for n, r in self._config.sources.repos ])
+        return dict([(n, Repository(join(self.sources_path, n), r.url,
+                                    r.get('branch'), r.hasattr('shallow')))
+                     for n, r in self._config.sources.repos])
 
     @property
     def root(self):
@@ -222,7 +236,10 @@ class OdooEnvironment:
 
     @property
     def client_config_filename(self):
-        return join(self.env_path, 'etc', self._config['Environment.client-config-filename'])
+        return join(
+            self.env_path,
+            'etc',
+            self._config['Environment.client-config-filename'])
 
     @property
     def server_config_filename(self):
@@ -234,7 +251,10 @@ class OdooEnvironment:
     @property
     def web_config_filename(self):
         if 'Environment.web-config-filename' in self._config:
-            return join(self.env_path, 'etc', self._config['Environment.web-config-filename'])
+            return join(
+                self.env_path,
+                'etc',
+                self._config['Environment.web-config-filename'])
         else:
             False
 
@@ -265,27 +285,34 @@ class OdooEnvironment:
     @property
     def modules_update(self):
         r = self._config.get('Modules.update', '')
-        r = [ s for s in r.split(',') if not s == '' ]
+        r = [s for s in r.split(',') if not s == '']
         return r
 
     @property
     def modules_install(self):
         r = self._config.get('Modules.install', '')
-        r = [ s for s in r.split(',') if not s == '' ]
+        r = [s for s in r.split(',') if not s == '']
         return r
 
-    def execute(self, command, args, no_wait=False, check_for_termination=False):
+    def execute(
+            self,
+            command,
+            args,
+            no_wait=False,
+            check_for_termination=False):
         """
-        Execute a command in the python environment defined in set_python_environment()
+        Execute a command in the python environment defined in
+        set_python_environment()
         """
         if no_wait:
-            P = subprocess.Popen([join(self.root,'bin',command)] + args)
+            P = subprocess.Popen([join(self.root, 'bin', command)] + args)
             if check_for_termination:
                 time.sleep(5)
-                if not P.poll() is None: return None
+                if not P.poll() is None:
+                    return None
             return P.pid
         else:
-            P = subprocess.Popen([join(self.root,'bin',command)] + args)
+            P = subprocess.Popen([join(self.root, 'bin', command)] + args)
             P.wait()
             return None
 
@@ -311,11 +338,13 @@ class OdooEnvironment:
 import pkg_resources, os.path
 print pkg_resources.resource_filename('openerp', 'addons')
 """
-        p = subprocess.Popen([ python_exe, '-c', _query_addons ],
-                            stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=DEVNULL)
+        p = subprocess.Popen(
+            [python_exe, '-c', _query_addons], stdout=subprocess.PIPE,
+            stdin=subprocess.PIPE, stderr=DEVNULL)
         addons_path = p.stdout.readline().strip()
         self.addonsourcepath = addons_path
         return addons_path
+
 
 def create_environment(path, config_ori):
     """Create environment structure.
@@ -325,8 +354,9 @@ def create_environment(path, config_ori):
 
     if not exists(path) or not listdir(path):
         # Crea el ambiente python
-        virtualenv.logger = virtualenv.Logger([(virtualenv.Logger.level_for_integer(2), sys.stdout)])
-        virtualenv.create_environment(path,site_packages=False)
+        virtualenv.logger = virtualenv.Logger(
+            [(virtualenv.Logger.level_for_integer(2), sys.stdout)])
+        virtualenv.create_environment(path, site_packages=False)
 
         # Crea el directorio donde va el archivo de configuracion
         makedirs(dirname(config_dst))
