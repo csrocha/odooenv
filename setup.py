@@ -2,7 +2,7 @@
 ##############################################################################
 #
 #    OdooEnv, Odoo Environment Administrator
-#    Copyright (C) 2011-2015 Coop Trab Moldeo Interactive 
+#    Copyright (C) 2011-2015 Coop Trab Moldeo Interactive
 #    (<http://www.moldeointeractive.com.ar>).
 #
 #    This program is free software: you can redistribute it and/or modify
@@ -28,7 +28,7 @@ setup(name='odooenv',
       author_email='cristian.rocha@moldeo.coop',
       maintainer='Cristian S. Rocha',
       maintainer_email='csr@moldeo.coop',
-      url='http://biz.moldeo.coop/',
+      url='https://github.com/csrocha/odooenv',
       description='Odoo Environment Manager',
       long_description="""
       OdooEnv helps you manage virtual python environments with different Odoo servers.
