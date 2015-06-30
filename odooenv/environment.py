@@ -201,9 +201,11 @@ class OdooEnvironment:
 
     @property
     def repositories(self):
-        return dict([(n, Repository(join(self.sources_path, n), r.url,
-                                    r.get('branch'), r.hasattr('shallow')))
-                     for n, r in self._config.sources.repos])
+        return {n: Repository(join(self.sources_path, n),
+                              r.url,
+                              r.get('branch'),
+                              getattr(r, 'shallow', False))
+                for n, r in self._config.sources.repos}
 
     @property
     def root(self):
