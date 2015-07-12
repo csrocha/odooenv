@@ -299,10 +299,16 @@ class OdooEnvironment:
         return r
 
     @property
-    def servers(self):
+    def server_config(self):
         cfg = self.server_config_filename
         cp = ConfigParser.ConfigParser()
         cp.readfp(open(cfg))
+
+        return cp
+
+    @property
+    def servers(self):
+        cp = self.server_config
 
         server = cp.get('options', 'xmlrpc_interface') or 'localhost'
         port = cp.get('options', 'xmlrpc_port') or '8069'
