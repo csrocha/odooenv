@@ -30,13 +30,13 @@ except:
 
 def init(args):
     """
-    Init an environment in the work path or in the declared path. 
+    Init an environment in the work path or in the declared path.
 
     config_url: Initial configuration file. Could be an URL.
     path: Where environment will exists.
     """
     print "Init environment."
-    
+
     path = abspath(args.path if args.path else 'odoo')
     config = args.config if args.config else defaults.config.origin
 
@@ -57,16 +57,16 @@ def init(args):
     except bzrlib.errors.NotBranchError, m:
         print "Trouble creating/updating local repository."
         print "ERROR: %s" % m
-        print "Please remove %s and execute the command again" % local_branch_url 
+        print "Please remove %s and execute the command again" % local_branch_url
         return -1
     except bzrlib.errors.InvalidURL:
         print "Trouble acceding remote repository."
-        print "The url <%s> in the environment.yml is invalid. Modify it and try again." % remote_branch_url 
+        print "The url <%s> in the environment.yml is invalid. Modify it and try again." % remote_branch_url
         return -1
 
 def setup(args, odooenv=None):
     """
-    Write default files to environment. 
+    Write default files to environment.
     """
     odooenv = odooenv or OdooEnvironment()
 
@@ -76,7 +76,7 @@ def setup(args, odooenv=None):
 
 def update(args, odooenv=None):
     """
-    Update sources. 
+    Update sources.
     """
     odooenv = odooenv or OdooEnvironment()
 
@@ -88,11 +88,11 @@ def update(args, odooenv=None):
                 print "Creating %s from %s" % (local_branch_url, remote_branch_url)
     except bzrlib.errors.NotBranchError:
         print "Trouble creating/updating local repository."
-        print "Please remove %s and execute the command again." % local_branch_url 
+        print "Please remove %s and execute the command again." % local_branch_url
         return -1
     except bzrlib.errors.InvalidURL:
         print "Trouble acceding remote repository."
-        print "Please check the url <%s> in the environment.yml and try again." % remote_branch_url 
+        print "Please check the url <%s> in the environment.yml and try again." % remote_branch_url
         return -1
     except pysvn._pysvn.ClientError, m:
         print "Trouble acceding remote repository."
@@ -229,7 +229,7 @@ def enable_addon(args, odooenv=None):
 
         if not ignore_depends:
             to_install.update(addon.depends)
-        
+
         if addon.is_enable(odooenv):
             print "Updating %s (%i:%s)" % (addon_name, len(to_install), addon.path)
         else:
@@ -248,7 +248,10 @@ def enable_addon(args, odooenv=None):
             print "Can't install %s modules" % (c_t - c)
 
     for server in odooenv.servers:
-        server.update_module_list()
+        if server.login():
+            server.update_module_list()
+        else:
+            print "Can't connect to server %s" % server.host
 
     return 0
 
@@ -467,13 +470,13 @@ def search_object(args, odooenv=None):
     print "Inherited:"
     for addon in odooenv.addons(inherited_filter=args.objects[0]):
         print "%35s:%s" % (addon.token, addon.name)
- 
+
 def search_entity(args, odooenv=None):
     """
     Search in xml some declared entity with id
     """
     odooenv = odooenv or OdooEnvironment()
- 
+
     for addon in odooenv.addons(entity_filter=args.entity[0]):
         print "%35s:%s:%s" % (addon.token, addon.name, ':'.join([ e for e in addon.entity(args.entity[0])]))
         #for filename, entity, = addon.entities
@@ -495,9 +498,9 @@ def show_addon(args, odooenv=None):
         print "Web:", addon.website
         print "Depends:", ','.join(addon.depends)
         objects = addon.objects
-        print "Defined Objects:", ','.join(objects[0]) 
+        print "Defined Objects:", ','.join(objects[0])
         print "Inhereted Objects:", ','.join(objects[1])
-        print "Source:", addon.path 
+        print "Source:", addon.path
 
 def list_db(args, odooenv=None):
     """
@@ -588,12 +591,12 @@ def snapshot(args, odooenv=None):
     dbname = args.database
     snapshot_name = args.name
     outfile = join(snapshots, "%s_%s.dump" % (dbname, snapshot_name))
-    
+
     P = subprocess.Popen(['pg_dump', '-Fc', '--compress', '9', '-f', outfile, dbname])
     r = P.wait()
     if r:
         print "ERROR: Cant dump the snapshot."
- 
+
 def restore(args, odooenv=None):
     """
     Restore a database snapshot.
@@ -648,7 +651,7 @@ def extradite(args, odooenv=None):
     elif operation == 'to':
         drp_cmd = [ 'ssh', host, 'psql', '-c' ,'DROP DATABASE IF EXISTS %s' % dbname ]
         src_cmd = [ 'pg_dump', '-Fc', '--compress', '9', dbname ]
-        dst_cmd = [ 'ssh', host, 'pg_restore', '-x', '-C', '-O', '--disable-triggers', '-Fc', '-d', 'postgres' ] 
+        dst_cmd = [ 'ssh', host, 'pg_restore', '-x', '-C', '-O', '--disable-triggers', '-Fc', '-d', 'postgres' ]
     else:
         print "ERROR: Invalid operation. Options are from or to."
         return
@@ -661,7 +664,7 @@ def extradite(args, odooenv=None):
     output = dst_p.communicate()
     dst_p.poll()
     src_p.poll()
-        
+
     return
 
 def pip(args, odooenv=None):
@@ -722,7 +725,7 @@ def csv2xml(args, odooenv=None):
                 <field name='$key'>$value</field>
             #end if
             #end for
-        </record> 
+        </record>
         #end for
     </data>
 </odoo>
@@ -879,7 +882,7 @@ def deploy(args, odooenv=None):
     snapshot(args, odooenv)
     update(args, odooenv)
     start(args, odooenv)
- 
+
 def main():
     parser = argparse.ArgumentParser()
 
@@ -1213,7 +1216,7 @@ create one using 'odooenv init' command.
         print "ERROR:", m.message
         print """
 I can't manage this version. Please advise to developers using
-this link http://launchpad.org/odooenv/bugs. 
+this link http://launchpad.org/odooenv/bugs.
 
 
 """
