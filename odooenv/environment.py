@@ -2,7 +2,7 @@
 ##############################################################################
 #
 #    OdooEnv, Odoo Environment Administrator
-#    Copyright (C) 2011-2015 Coop Trab Moldeo Interactive 
+#    Copyright (C) 2011-2015 Coop Trab Moldeo Interactive
 #    (<http://www.moldeointeractive.com.ar>).
 #
 #    This program is free software: you can redistribute it and/or modify
@@ -85,7 +85,7 @@ class OdooEnvironment:
         if self._config.has('logging'):
             for d in [ dirname(join(self.root_path, f)) for f in self._config.logging.take(['filename'])['filename']]:
                 if not exists(d): makedirs(d)
-            logging.config.dictConfig(self._config.logging.as_dict()) 
+            logging.config.dictConfig(self._config.logging.as_dict())
             self._logger = logging.getLogger('odooenv')
         else:
             self._logger = logging
@@ -95,7 +95,7 @@ class OdooEnvironment:
         Save configuration file.
         """
         if not init:
-            self._config['Environment.environments'] = ','.join(self.environments) 
+            self._config['Environment.environments'] = ','.join(self.environments)
         tools.save_configuration(self._config, self.config_filename)
 
     def update(self, iterate=False, repositories=[]):
@@ -287,9 +287,9 @@ class OdooEnvironment:
 
         for tag,db  in self._config.get('databases', []):
             name = db.name
-            user = db.user
-            password = db.password
-            yield OdooServer(db.name, server, port, db.user, db.password)
+            user = getattr(db, 'user', 'admin')
+            password = getattr(db, 'password', 'admin')
+            yield OdooServer(name, server, port, user, password)
 
     def execute(self, command, args, no_wait=False, check_for_termination=False):
         """
@@ -328,7 +328,7 @@ class OdooEnvironment:
 import pkg_resources, os.path
 print pkg_resources.resource_filename('openerp', 'addons')
 """
-       
+
         p = subprocess.Popen([ python_exe, '-c', _query_addons ],
                             stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=DEVNULL)
         addons_path = p.stdout.readline().strip()
