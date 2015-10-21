@@ -27,7 +27,7 @@ import time
 import logging
 import logging.config
 from os import makedirs, walk, listdir
-from os.path import abspath, join, exists, dirname, basename
+from os.path import abspath, join, exists, dirname, basename, realpath
 from installable import Installable
 from odooenv import tools
 from virtualenv import subprocess
@@ -165,6 +165,7 @@ class OdooEnvironment:
     def addons(self, token_filter=None, object_filter=None,
                inherited_filter=None, entity_filter=None):
         config_filename = self.addon_config_filename
+        addonsourcepath = self.get_addonsourcepath()
 
         filter_re = re.compile(token_filter) if token_filter else None
 
@@ -182,7 +183,8 @@ class OdooEnvironment:
             if (
                 config_filename in fs and
                 '__init__.py' in fs and
-                filter_name(basename(path))
+                filter_name(basename(path)) and
+                realpath(path) != realpath(addonsourcepath)
             ):
                 addon = Addon(join(path, config_filename))
                 if (filter_addon(addon)):
@@ -350,16 +352,25 @@ class OdooEnvironment:
         if getattr(self, 'addonsourcepath', False):
             return self.addonsourcepath
 
-        python_exe = join(self.root, 'bin', 'python')
+        if self.server_config.has_option('options', 'addons_path'):
+            paths = self.server_config.get('options', 'addons_path')
+            for p in paths.split(','):
+                p = os.path.abspath(p)
+                if exists('./addons') and os.access(p, os.W_OK):
+                    addons_path = p
+        else:
 
-        _query_addons = """
-import pkg_resources, os.path
-print pkg_resources.resource_filename('openerp', 'addons')
-"""
-        p = subprocess.Popen(
-            [python_exe, '-c', _query_addons], stdout=subprocess.PIPE,
-            stdin=subprocess.PIPE, stderr=DEVNULL)
-        addons_path = p.stdout.readline().strip()
+            python_exe = join(self.root, 'bin', 'python')
+
+            _query_addons = """
+            import pkg_resources, os.path
+            print pkg_resources.resource_filename('openerp', 'addons')
+            """
+            p = subprocess.Popen(
+                [python_exe, '-c', _query_addons], stdout=subprocess.PIPE,
+                stdin=subprocess.PIPE, stderr=DEVNULL)
+            addons_path = p.stdout.readline().strip()
+
         self.addonsourcepath = addons_path
         return addons_path
 

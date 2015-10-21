@@ -239,6 +239,8 @@ def enable_addon(args, odooenv=None):
 
     c_t = len(to_install)
 
+    print "Target directory:", addons_path
+
     if not lexists(addons_path):
         print "Execute 'odooenv install' before 'odooenv enable'"
         return -1
