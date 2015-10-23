@@ -140,6 +140,8 @@ def install(args, odooenv=None):
     if args.clean:
         odooenv.reset_python_environment()
 
+    developer_mode = args.developer
+
     print "Checking for availables applications."
     itemstoinstall = [ i.lower() for i in args.itemstoinstall ]
     installables = [ app for app in odooenv.installables if app.name.lower() in itemstoinstall ] \
@@ -153,8 +155,9 @@ def install(args, odooenv=None):
         print "Or please check if you define it in the list 'installables' of section 'Environment' in the 'environment.yml' file."
 
     for app in installables:
-        print "Installing %s" % app.name
-        if app.install():
+        print "Installing %s%s" % (app.name,
+                                   ' as developer' if developer_mode else '')
+        if app.install(developer_mode):
             print "Successfull installed"
         else:
             print "ERROR: Can't confirm the application or module is installed."
@@ -950,6 +953,8 @@ def main():
                              help='Environment configuration file.')
     parser_install.add_argument('--clean', '-C', action='store_true',
                              help='Clean environment before continue. Use when your python system is update and environment not work any more.')
+    parser_install.add_argument('--developer', '-D', action='store_true',
+                             help='Install for developer mode.')
     parser_install.add_argument('itemstoinstall', metavar='item_to_install', type=str, nargs='*',
                              help='Item to install.')
     parser_install.set_defaults(func=install,

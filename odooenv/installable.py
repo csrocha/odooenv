@@ -2,7 +2,7 @@
 ##############################################################################
 #
 #    OERPEnv, OpenERP Environment Administrator
-#    Copyright (C) 2011-2015 Coop Trab Moldeo Interactive 
+#    Copyright (C) 2011-2015 Coop Trab Moldeo Interactive
 #    (<http://www.moldeointeractive.com.ar>).
 #
 #    This program is free software: you can redistribute it and/or modify
@@ -32,7 +32,7 @@ from tools import call
 class Installable:
     def __init__(self, method, url, bin_path, logger=logging):
         """
-        Init an addon class information 
+        Init an addon class information
         """
         self._method = method
         repository_type = None
@@ -52,10 +52,17 @@ class Installable:
         self._description = None
         self._logger=logger
 
-    def run_setup(self, command):
+    def run_setup(self, command, developer_mode=False):
         bin_path = self._bin_path
         url = self._url
-        command = [ join(bin_path, 'python'), join(url,'setup.py'), command ]
+
+        if command=='install' and developer_mode:
+            command='develop'
+
+        command = [join(bin_path, 'python'),
+                   join(url,'setup.py'),
+                   command]
+
         return call(command, self._logger, cwd=url)
 
     def run_pip(self, command):
@@ -80,7 +87,7 @@ class Installable:
         method = self._method
         url = self._url
 
-        name = url 
+        name = url
         fullname = 'No fullname'
         description = 'No description'
 
@@ -89,7 +96,7 @@ class Installable:
             if r != 0:
                 print "ERROR: This package is not well configured, or you need install previous modules to make it work"
                 print err
-            name=','.join(name).strip() if r == 0 else url 
+            name=','.join(name).strip() if r == 0 else url
 
             fullname, err, r = self.run_setup('--fullname')
             fullname=','.join(fullname).strip() if r == 0 else 'No fullname'
@@ -118,8 +125,8 @@ class Installable:
         self._fullname = fullname
         self._description = description
 
-    def install(self):
-        out, err, r = self._run('install')
+    def install(self, developer_mode=False):
+        out, err, r = self._run('install', developer_mode=developer_mode)
 
         if (r == 0):
             return True
