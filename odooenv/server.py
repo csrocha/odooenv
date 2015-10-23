@@ -1,13 +1,10 @@
 # -*- coding: utf-8 -*-
-import re
-import sys
-import time
-import logging
-import logging.config
 import oerplib
 
+
 class OdooServer:
-    def __init__(self, name=None, server='localhost', port='8069', user='admin', password='admin'):
+    def __init__(self, name=None, server='localhost',
+                 port='8069', user='admin', password='admin'):
         """
         Create an instance of OdooServer class.
 
@@ -22,8 +19,9 @@ class OdooServer:
         """
         Query for the server database list.
         """
-        self.server = oerplib.OERP(server=self.server, protocol=self.protocol, port=self.port)
-        return oerp.db.list()
+        self.server = oerplib.OERP(server=self.server,
+                                   protocol=self.protocol, port=self.port)
+        return self.server.db.list()
 
     def update_module_list(self):
         """
