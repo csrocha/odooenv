@@ -7,6 +7,7 @@ import sys
 import os
 import signal
 import argparse
+import argcomplete
 import re
 from os.path import abspath, lexists, join, dirname,\
     relpath, islink
@@ -1329,6 +1330,8 @@ def main():
                                 help='Clean environment before continue.'
                                 ' Use when your python system is update and'
                                 ' environment not work any more.')
+    parser_install.add_argument('--developer', '-D', action='store_true',
+                                help='Install applications as developer.')
     parser_install.add_argument('itemstoinstall', metavar='item_to_install',
                                 type=str, nargs='*', help='Item to install.')
     parser_install.set_defaults(func=install,
@@ -1699,6 +1702,9 @@ def main():
     parser_rename.set_defaults(func=rename_module,
                                config=defaults.config.filename,
                                parameters=None)
+
+    # Prepare autocomplete
+    argcomplete.autocomplete(parser)
 
     # Parse and execute
     args = parser.parse_args()
