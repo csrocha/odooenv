@@ -665,8 +665,8 @@ def snapshot(args, odooenv=None):
     cfg = odooenv.server_config
 
     def add_config(section, key, param, options):
-        if (cfg.has_option(section, key)
-            and cfg.get(section, key).lower() not in ['false','0']):
+        if cfg.has_option(section, key) and \
+                cfg.get(section, key).lower() not in ['false', '0']:
             options.append('%s%s' % (param, cfg.get(section, key)))
         return options
 
@@ -1210,6 +1210,67 @@ def nuke(args, odooenv=None):
     pass
 
 
+def rename_module(args, odooenv=None):
+    """
+    Rename a module.
+    """
+    odooenv = odooenv or OdooEnvironment()
+
+    import psycopg2
+
+    conn = psycopg2.connect("dbname=%s" % args.database[0])
+    cur = conn.cursor()
+
+    actual_name = args.module[0]
+    new_name = args.module[1]
+    dict_parms = {'actual_name': actual_name, 'new_name': new_name}
+
+    i18n_RES = [
+        "s/#\(.*\)\* %(actual_name)s/#\1* %(new_name)s/g",
+        "s/#\. module: %(actual_name)s/#. module: %(new_name)s/g",
+        "s/#: view:\(.*\):%(actual_name)s/#: view:\1:%(new_name)s/g",
+        "s/#: model:\(.*\),name:%(actual_name)s/#: model:\1,name:%(new_name)s/g"
+    ]
+
+    # Rename in filesystem
+    actual_path = os.getcwd()
+    for addon in odooenv.addons(actual_name):
+        print "Renaming in %s" % addon.path
+
+        i18n = os.path.join(addon.path, 'i18n')
+        if os.path.exists(i18n):
+            os.chdir(i18n)
+            for RE in i18n_RES:
+                subprocess.call("sed -i '%s' *.po*" % (RE % dict_parms),
+                                shell=True)
+
+    os.chdir(actual_path)
+
+    # Rename in database
+    cur.execute("UPDATE ir_module_module SET name = %s WHERE name = %s",
+                (new_name, actual_name))
+
+    cur.execute("UPDATE ir_model_data SET module = %s WHERE module = %s",
+                (new_name, actual_name))
+
+    cur.execute("""
+                UPDATE ir_model_data SET name = %s
+                    WHERE name = %s
+                    AND module = 'base'
+                    AND model = 'ir.module.module';
+                """,
+                ("module_%s" % new_name, "module_%s" % actual_name))
+
+    cur.execute("UPDATE ir_module_module_dependency SET"
+                " name = %s WHERE name = %s;",
+                (new_name, actual_name))
+
+    cur.execute("UPDATE ir_translation SET module = %s WHERE module = %s;",
+                ("module_%s" % new_name, "module_%s" % actual_name))
+
+    print ("Module renamed.")
+
+
 def main():
     parser = argparse.ArgumentParser()
 
@@ -1623,6 +1684,21 @@ def main():
     parser_nuke.set_defaults(func=nuke,
                              config=defaults.config.filename,
                              parameters=None)
+
+    # Rename module command
+    parser_rename = subparsers.add_parser('rename', help=repath.__doc__)
+    parser_rename.add_argument('--config', '-c', metavar='config',
+                               type=str, nargs='?',
+                               help='Environment configuration file.')
+    parser_rename.add_argument('database', metavar='database',
+                               type=str, nargs=1,
+                               help='Database origin')
+    parser_rename.add_argument('module', metavar='module',
+                               type=str, nargs=2,
+                               help='Module to rename and the new name')
+    parser_rename.set_defaults(func=rename_module,
+                               config=defaults.config.filename,
+                               parameters=None)
 
     # Parse and execute
     args = parser.parse_args()
