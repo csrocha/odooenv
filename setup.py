@@ -3,7 +3,7 @@ from setuptools import setup
 
 setup(
     name='odooenv',
-    version='2.2.7',
+    version='2.2.8',
     author='Cristian S. Rocha',
     author_email='cristian.rocha@moldeo.coop',
     maintainer='Cristian S. Rocha',
