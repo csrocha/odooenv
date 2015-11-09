@@ -644,10 +644,18 @@ def dump_db(args, odooenv=None):
     pass
 
 
-def clone(args, odooenv=None):
+def clone_db(args, odooenv=None):
     """
-    Clone environments.
+    Clone database.
     """
+    src_dbname = args.src_database[0]
+    dst_dbname = args.dst_database[1]
+    owner = args.owner[0]
+    P = subprocess.Popen(['createdb',
+                          '-O', owner,
+                          '-T', src_dbname,
+                          dst_dbname])
+    P.wait()
     pass
 
 
@@ -1523,6 +1531,24 @@ def main():
                                 help='Environment configuration file.')
     parser_drop_db.set_defaults(func=drop_db,
                                 config=defaults.config.filename)
+
+    # The drop-db command
+    parser_drop_db = subparsers.add_parser('clone-db', help=clone_db.__doc__)
+    parser_drop_db.add_argument('src_database', metavar='src_database',
+                                type=str, nargs=1,
+                                help='Source database')
+    parser_drop_db.add_argument('dst_database', metavar='dst_database',
+                                type=str, nargs=1,
+                                help='Target database')
+    parser_drop_db.add_argument('--owner', metavar='owner',
+                                type=str, nargs='?',
+                                help='Owner of the target database')
+    parser_drop_db.add_argument('--config', '-c', metavar='config',
+                                type=str, nargs='?',
+                                help='Environment configuration file.')
+    parser_drop_db.set_defaults(func=clone_db,
+                                config=defaults.config.filename,
+                                owner=defaults.database.user)
 
     # The init-db command
     parser_init_db = subparsers.add_parser('init-db', help=init_db.__doc__)
