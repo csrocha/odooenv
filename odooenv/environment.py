@@ -162,8 +162,9 @@ class OdooEnvironment:
         return [Installable(m, is_application=False)
                 for m in self._config['Environment.modules'].split(',')]
 
-    def addons(self, token_filter=None, object_filter=None,
-               inherited_filter=None, entity_filter=None):
+    def addons(self, token_filter=None, model_filter=None,
+               inherited_filter=None, data_filter=None,
+               field_filter=None):
         config_filename = self.addon_config_filename
         addonsourcepath = self.get_addonsourcepath()
 
@@ -174,9 +175,12 @@ class OdooEnvironment:
 
         def filter_addon(a):
             return (
-                (object_filter in a.objects[0] if object_filter else True) and
-                (entity_filter in a.entities if entity_filter else True) and
-                (inherited_filter in a.objects[1] if inherited_filter else True)
+                (model_filter in a.models[0] if model_filter else True)
+                and (data_filter in a.data if data_filter else True)
+                and (inherited_filter in a.models[1]
+                     if inherited_filter else True)
+                and (field_filter in [f for fn, cl, f in a.fields]
+                     if field_filter else True)
             )
 
         for path, ds, fs in walk(self.sources_path, followlinks=True):

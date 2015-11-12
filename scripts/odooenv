@@ -32,6 +32,31 @@ except:
         "Please install pysvn. Debian: sudo aptitude install python-svn"
 
 
+def _is_server_installed(odooenv):
+    logger = odooenv.logger
+    try:
+        addons_path = odooenv.get_addonsourcepath()
+    except:
+        if addons_path == "":
+            logger.error("Server is not installed")
+        return False
+
+    if not addons_path:
+        logger.error("Install the server. If not try the following:")
+        logger.error(
+            "Check if PYTHON_EGG_CACHE if set in writeable directory.\n"
+            "Your can use:\nexport PYTHON_EGG_CACHE=%s/.python-eggs" %
+            odooenv.root)
+        print "Is PYTHON_EGG_CACHE defined? Check Log."
+        return False
+
+    if not lexists(addons_path):
+        print "Execute 'odooenv install' before 'odooenv enable'"
+        return False
+
+    return True
+
+
 def init(args):
     """
     Init an environment in the work path or in the declared path.
@@ -208,23 +233,11 @@ def enable_addon(args, odooenv=None):
     Enabel addons on the environment. Create a symbolic link.
     """
     odooenv = odooenv or OdooEnvironment()
-    logger = odooenv.logger
 
-    try:
-        addons_path = odooenv.get_addonsourcepath()
-    except:
-        if addons_path == "":
-            logger.error("Server is not installed")
-            return
+    if not _is_server_installed(odooenv):
+        return False
 
-    if not addons_path:
-        logger.error("Install the server. If not try the following:")
-        logger.error(
-            "Check if PYTHON_EGG_CACHE if set in writeable directory.\n"
-            "Your can use:\nexport PYTHON_EGG_CACHE=%s/.python-eggs" %
-            odooenv.root)
-        print "Is PYTHON_EGG_CACHE defined? Check Log."
-        return
+    addons_path = odooenv.get_addonsourcepath()
 
     ignore_filter = re.compile(args.ignore_filter) \
         if args.ignore_filter is not None else None
@@ -244,10 +257,6 @@ def enable_addon(args, odooenv=None):
     c_t = len(to_install)
 
     print "Target directory:", addons_path
-
-    if not lexists(addons_path):
-        print "Execute 'odooenv install' before 'odooenv enable'"
-        return -1
 
     if not to_install <= addons_set:
         print "No available addons '%s'." % ' '.join(to_install)
@@ -505,31 +514,51 @@ def stop(args, odooenv=None):
         return -1
 
 
-def search_object(args, odooenv=None):
+def search_models(args, odooenv=None):
     """
-    Search addons with this object.
-    """
-    odooenv = odooenv or OdooEnvironment()
-
-    print "Definition:"
-    for addon in odooenv.addons(object_filter=args.objects[0]):
-        print "%35s:%s" % (addon.token, addon.name)
-
-    print "Inherited:"
-    for addon in odooenv.addons(inherited_filter=args.objects[0]):
-        print "%35s:%s" % (addon.token, addon.name)
-
-
-def search_entity(args, odooenv=None):
-    """
-    Search in xml some declared entity with id
+    Search addons with this models.
     """
     odooenv = odooenv or OdooEnvironment()
 
-    for addon in odooenv.addons(entity_filter=args.entity[0]):
-        print "%35s:%s:%s" % (
-            addon.token, addon.name,
-            ':'.join([e for e in addon.entity(args.entity[0])]))
+    for model in args.models:
+        print "%s definition." % model
+        for addon in odooenv.addons(model_filter=model):
+            print "%35s:%s" % (addon.token, addon.name)
+
+    for model in args.models:
+        print "%s inherited." % model
+        for addon in odooenv.addons(inherited_filter=model):
+            print "%35s:%s" % (addon.token, addon.name)
+
+
+def search_data(args, odooenv=None):
+    """
+    Search in xml some declared data with id
+    """
+    odooenv = odooenv or OdooEnvironment()
+
+    for item in args.data:
+        print "%s definition." % item
+        for addon in odooenv.addons(data_filter=item):
+            print "%35s:%s:%s" % (
+                addon.token, addon.name,
+                ':'.join([e for e in addon.data_info(item)]))
+
+
+def search_fields(args, odooenv=None):
+    """
+    Search in code for some declared fields with id
+    """
+    odooenv = odooenv or OdooEnvironment()
+
+    for field in args.fields:
+        print "%s definition." % field
+        for addon in odooenv.addons(field_filter=field):
+            print "%s:%s\n%s" % (
+                addon.token, addon.name,
+                '\n'.join(["%s:%s:%s" % f
+                           for f in addon.fields
+                           if f[2]==field]))
 
 
 def show_addon(args, odooenv=None):
@@ -648,9 +677,9 @@ def clone_db(args, odooenv=None):
     """
     Clone database.
     """
-    src_dbname = args.src_database[0]
-    dst_dbname = args.dst_database[1]
-    owner = args.owner[0]
+    src_dbname = args.src_database.pop()
+    dst_dbname = args.dst_database.pop()
+    owner = args.owner
     P = subprocess.Popen(['createdb',
                           '-O', owner,
                           '-T', src_dbname,
@@ -1462,30 +1491,41 @@ def main():
     parser_stop.set_defaults(func=stop,
                              config=defaults.config.filename)
 
-    # The search_object command
-    parser_search_object = subparsers.add_parser('search-object',
-                                                 help=search_object.__doc__)
-    parser_search_object.add_argument('objects',
-                                      metavar='objects',
-                                      type=str, nargs=1,
-                                      help='Object name.')
-    parser_search_object.add_argument('--config', '-c', metavar='config',
-                                      type=str, nargs='?',
-                                      help='Environment configuration file.')
-    parser_search_object.set_defaults(func=search_object,
-                                      config=defaults.config.filename)
+    # The search command
+    parser_search = subparsers.add_parser('search',
+                                          help="Search command for models,"
+                                          " fields and data in addons")
+    parser_search.add_argument('--config', '-c', metavar='config',
+                               type=str, nargs='?',
+                               help='Environment configuration file.')
+    parser_search.set_defaults(config=defaults.config.filename)
+    subparsers_search = parser_search.add_subparsers(help="sub-commands")
 
-    # The search_entity command
-    parser_search_entity = subparsers.add_parser('search-entity',
-                                                 help=search_entity.__doc__)
-    parser_search_entity.add_argument('entity',
-                                      metavar='entity', type=str, nargs=1,
-                                      help='Entity name.')
-    parser_search_entity.add_argument('--config', '-c', metavar='config',
-                                      type=str, nargs='?',
-                                      help='Environment configuration file.')
-    parser_search_entity.set_defaults(func=search_entity,
-                                      config=defaults.config.filename)
+    # The search model command
+    parser_search_object = subparsers_search.add_parser(
+        'model', help=search_models.__doc__)
+    parser_search_object.add_argument('models',
+                                      metavar='models',
+                                      type=str, nargs='*',
+                                      help='List of models.')
+    parser_search_object.set_defaults(func=search_models)
+
+    # The search data command
+    parser_search_data = subparsers_search.add_parser(
+        'data', help=search_data.__doc__)
+    parser_search_data.add_argument('data',
+                                      metavar='data', type=str, nargs='*',
+                                      help='Data xml id.')
+    parser_search_data.set_defaults(func=search_data)
+
+    # The search field command
+    parser_search_field = subparsers_search.add_parser(
+        'field', help=search_fields.__doc__)
+    parser_search_field.add_argument('fields',
+                                      metavar='fields', type=str, nargs='*',
+                                      help='Data xml id.')
+    parser_search_field.set_defaults(func=search_fields)
+
 
     # The show_addon command
     parser_show_addon = subparsers.add_parser('show', help=show_addon.__doc__)
@@ -1540,7 +1580,7 @@ def main():
     parser_drop_db.add_argument('dst_database', metavar='dst_database',
                                 type=str, nargs=1,
                                 help='Target database')
-    parser_drop_db.add_argument('--owner', metavar='owner',
+    parser_drop_db.add_argument('--owner', '-o', metavar='owner',
                                 type=str, nargs='?',
                                 help='Owner of the target database')
     parser_drop_db.add_argument('--config', '-c', metavar='config',
