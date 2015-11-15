@@ -360,8 +360,10 @@ class OdooEnvironment:
             paths = self.server_config.get('options', 'addons_path')
             for p in paths.split(','):
                 p = os.path.abspath(p)
-                if exists('./addons') and os.access(p, os.W_OK):
+                if exists(p) and os.access(p, os.W_OK):
                     addons_path = p
+                else:
+                    return False
         else:
 
             python_exe = join(self.root, 'bin', 'python')
