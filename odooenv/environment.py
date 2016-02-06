@@ -308,7 +308,10 @@ class OdooEnvironment:
     def server_config(self):
         cfg = self.server_config_filename
         cp = ConfigParser.ConfigParser()
-        cp.readfp(open(cfg))
+        try:
+            cp.readfp(open(cfg))
+        except:
+            return False
 
         return cp
 
@@ -320,7 +323,20 @@ class OdooEnvironment:
         port = cp.get('options', 'xmlrpc_port') or '8069'
 
         for tag, db in self._config.get('databases', []):
-            yield OdooServer(db.name, server, port, db.user, db.password)
+            if hasattr(db, 'name') and \
+                    hasattr(db, 'user') and \
+                    hasattr(db, 'password'):
+                yield OdooServer(
+                    db.name,
+                    server,
+                    port,
+                    db.user,
+                    db.password)
+            else:
+                print "Can't connect to server %s."\
+                    " Incomplete section 'databases'."\
+                    " Needs name, user & password for each database."\
+                    % (db.name,)
 
     def execute(self, command, args, no_wait=False,
                 check_for_termination=False):
@@ -356,7 +372,7 @@ class OdooEnvironment:
         if getattr(self, 'addonsourcepath', False):
             return self.addonsourcepath
 
-        if self.server_config.has_option('options', 'addons_path'):
+        if self.server_config and self.server_config.has_option('options', 'addons_path'):
             paths = self.server_config.get('options', 'addons_path')
             for p in paths.split(','):
                 p = os.path.abspath(p)
@@ -375,7 +391,7 @@ class OdooEnvironment:
             p = subprocess.Popen(
                 [python_exe, '-c', _query_addons], stdout=subprocess.PIPE,
                 stdin=subprocess.PIPE, stderr=DEVNULL)
-            addons_path = p.stdout.readline().strip()
+            addons_path = p.stdout.readline().strip() or False
 
         self.addonsourcepath = addons_path
         return addons_path

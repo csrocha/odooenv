@@ -431,7 +431,8 @@ def start(args, odooenv=None):
 
     if not lexists(odooenv.server_config_filename):
         options += ['--save']
-        options += ['--addons-path', odooenv.get_addonsourcepath()]
+        addons_path = odooenv.get_addonsourcepath()
+        options += ['--addons-path', addons_path] if addons_path else []
 
     if database and database is not None:
         options += ['-d', database]
