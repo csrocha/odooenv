@@ -57,6 +57,15 @@ def _is_server_installed(odooenv):
     return True
 
 
+def clear(args, odooenv=None):
+    """
+    Clear the python virtual environment.
+    """
+    odooenv = odooenv or OdooEnvironment()
+
+    odooenv.reset_python_environment()
+
+
 def init(args):
     """
     Init an environment in the work path or in the declared path.
@@ -374,6 +383,7 @@ def test_addon(args, odooenv=None):
     test_config = odooenv.get_tests()
     tests = args.tests
     cleandb = args.clean
+    toupdate = args.update or []
 
     for test in tests:
         print "Running test %s" % test
@@ -382,7 +392,7 @@ def test_addon(args, odooenv=None):
             continue
 
         dbname = test_config[test].get('database', "_test_%s_" % test)
-        addons = test_config[test].get('addons').split(' ')
+        addons = toupdate + test_config[test].get('addons').split(' ')
         logfile = test_config[test].get('logfile')
         try:
             if not tools.exists_db(dbname) or cleandb:
@@ -558,7 +568,7 @@ def search_fields(args, odooenv=None):
                 addon.token, addon.name,
                 '\n'.join(["%s:%s:%s" % f
                            for f in addon.fields
-                           if f[2]==field]))
+                           if f[2] == field]))
 
 
 def show_addon(args, odooenv=None):
@@ -1326,6 +1336,10 @@ def main():
                              help='Initial environment configuration file.')
     parser_init.set_defaults(func=init)
 
+    # The init command
+    parser_clear = subparsers.add_parser('clear', help=clear.__doc__)
+    parser_clear.set_defaults(func=clear)
+
     # The setup command
     parser_setup = subparsers.add_parser('setup', help=init.__doc__)
 
@@ -1454,6 +1468,9 @@ def main():
     parser_test_addon.add_argument(
         '--debug', '-g', action='store_true',
         help='Set server in debug mode.')
+    parser_test_addon.add_argument(
+        '--update', '-u', metavar='toupdate', type=str, nargs='*',
+        help='Update this modules.')
     parser_test_addon.add_argument(
         '--config', '-c', metavar='config', type=str, nargs='?',
         help='Environment configuration file.')
