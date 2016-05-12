@@ -147,7 +147,7 @@ class GITRepository(RepositoryBase):
         '''
 
         # Download updates.
-        self._git_(['fetch'] + ['--depth', '1'] if self.shallow else [])
+        self._git_(['fetch'] + (['--depth', '1'] if self.shallow else []))
 
         if tag:
             # Stage changes.
