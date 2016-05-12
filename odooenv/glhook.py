@@ -81,7 +81,7 @@ class GitLabHook(object):
             current_prefix, current_major, current_minor, current_patch = \
                 tag_split(current_tag)
 
-            self.logger.info("Replacing tag %s with %s.", (current_tag, tag))
+            self.logger.info("Replacing tag %s with %s." % (current_tag, tag))
 
             if int(current_major) < int(major):
                 self.logger.info("Reinstalling.")
