@@ -25,6 +25,7 @@ from bzrlib.branch import Branch
 from os.path import exists
 import re
 import subprocess
+import logging
 
 try:
     import pysvn
@@ -34,11 +35,13 @@ except:
 
 
 class RepositoryBase:
-    def __init__(self, local_path, remote_url, branch=None, shallow=False):
+    def __init__(self, local_path, remote_url,
+                 branch=None, shallow=False, logger=None):
         self.local_path = local_path
         self.remote_url = remote_url
         self.branch = branch
         self.shallow = shallow
+        self.logger = logger or logging
 
     def update(self):
         raise NotImplementedError
@@ -130,28 +133,33 @@ class GITRepository(RepositoryBase):
         '''
         Update repository.
         '''
+        logger = self.logger
+
         # Download updates.
         git_command = ['git']
         git_command.extend(['-C', self.local_path])
         git_command.extend(['fetch'])
         if self.shallow:
             git_command.extend(['--depth', '1'])
-        subprocess.call(git_command)
+        logger.debug('Executing: %s' % ' '.join(git_command))
+        logger.debug('Return: %s' % subprocess.check_output(git_command))
 
         if tag:
             # Stage changes.
             git_command = ['git']
             git_command.extend(['-C', self.local_path])
-            git_command.extend(['add'])
+            git_command.extend(['stage'])
             git_command.extend(['-f'])
-            subprocess.call(git_command)
+            logger.debug('Executing: %s' % ' '.join(git_command))
+            logger.debug('Return: %s' % subprocess.check_output(git_command))
 
             # Change to tag
             git_command = ['git']
             git_command.extend(['-C', self.local_path])
             git_command.extend(['checkout'])
             git_command.extend([tag])
-            subprocess.call(git_command)
+            logger.debug('Executing: %s' % ' '.join(git_command))
+            logger.debug('Return: %s' % subprocess.check_output(git_command))
 
         # Change to branch.
         if self.branch:
@@ -160,13 +168,15 @@ class GITRepository(RepositoryBase):
             git_command.extend(['checkout'])
             git_command.extend(['-f'])
             git_command.extend([str(self.branch)])
-            subprocess.call(git_command)
+            logger.debug('Executing: %s' % ' '.join(git_command))
+            logger.debug('Return: %s' % subprocess.check_output(git_command))
 
         # Update submodules.
         git_command = ['git']
         git_command.extend(['-C', self.local_path])
         git_command.extend(['submodule', 'update', '--recursive'])
-        subprocess.call(git_command)
+        logger.debug('Executing: %s' % ' '.join(git_command))
+        logger.debug('Return: %s' % subprocess.check_output(git_command))
 
     def checkout(self):
         '''
