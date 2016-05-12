@@ -133,12 +133,25 @@ class GITRepository(RepositoryBase):
         # Download updates.
         git_command = ['git']
         git_command.extend(['-C', self.local_path])
-        git_command.extend(['pull'])
+        git_command.extend(['fetch'])
         if self.shallow:
             git_command.extend(['--depth', '1'])
-        if tag:
-            git_command.extend([self.remote_url, tag])
         subprocess.call(git_command)
+
+        if tag:
+            # Stage changes.
+            git_command = ['git']
+            git_command.extend(['-C', self.local_path])
+            git_command.extend(['add'])
+            git_command.extend(['-f'])
+            subprocess.call(git_command)
+
+            # Change to tag
+            git_command = ['git']
+            git_command.extend(['-C', self.local_path])
+            git_command.extend(['checkout'])
+            git_command.extend([tag])
+            subprocess.call(git_command)
 
         # Change to branch.
         if self.branch:
