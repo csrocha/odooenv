@@ -162,7 +162,7 @@ class GITRepository(RepositoryBase):
             logger.debug('Return: %s' % subprocess.check_output(git_command))
 
         # Change to branch.
-        if self.branch:
+        elif self.branch:
             git_command = ['git']
             git_command.extend(['-C', self.local_path])
             git_command.extend(['checkout'])
