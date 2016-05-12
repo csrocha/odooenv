@@ -77,12 +77,13 @@ class GitLabHook(object):
             repo = GITRepository(root_path, uri,
                                  branch=branch, logger=self.logger)
             current_tag = repo.current_tag()
+
+            self.logger.info("Replacing tag %s with %s." % (current_tag, tag))
             repo.update(tag=tag)
 
             current_prefix, current_major, current_minor, current_patch = \
                 tag_split(current_tag)
 
-            self.logger.info("Replacing tag %s with %s." % (current_tag, tag))
 
             if int(current_major) < int(major):
                 self.logger.info("Reinstalling.")
