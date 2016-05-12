@@ -439,7 +439,7 @@ class OdooEnvironment:
         if snapshot:
             if database is None:
                 print "ERROR: Cant recover snapshot %s," \
-                    "because not defined database" % snapshot
+                    "because no database defined." % snapshot
                 return -1
             print "Recovering snapshot '%s' of the database '%s'." % \
                 (snapshot, database)
@@ -473,7 +473,8 @@ class OdooEnvironment:
             print "ERROR: %s" % m
             traceback.print_exc(file=sys.stdout)
             print "If you move the environment please rebuild default" \
-                " python environment and check directories in environment.yml file."
+                " python environment and check directories in"\
+                " environment.yml file."
             print "If all ok, be sure you executed 'odooenv install'" \
                 " before run this command."
             return False
@@ -505,19 +506,21 @@ class OdooEnvironment:
                                   False, True)
         self.install()
 
-    def install(self):
-        for app in odooenv.installables:
+    def install(self, developer_mode=False):
+        for app in self.installables:
             print "Installing %s%s" % (app.name,
-                                    ' as developer' if developer_mode else '')
+                                       ' as developer'
+                                       if developer_mode else '')
             if app.install(developer_mode):
                 print "Successfull installed"
             else:
-                print """
-                ERROR: Can't confirm the application or module is installed.
-                Please, execute 'odooenv test base' to check if server is working
-                To check if client is working execute 'odoo client'
-                If not working, recreate the python environment and try again.
-                """
+                print "ERROR:"\
+                    " Can't confirm the application or module is installed.\n"\
+                    "Please, execute 'odooenv test base' to check if server is"\
+                    " working.\n"\
+                    "To check if client is working execute 'odoo client'.\n"\
+                    "If not working,"\
+                    " recreate the python environment and try again."
 
 
 def create_environment(path, config_ori):
