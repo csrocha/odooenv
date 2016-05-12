@@ -139,7 +139,10 @@ class GITRepository(RepositoryBase):
         git_command.extend(['-C', self.local_path])
         git_command.extend(op)
         logger.debug('Executing: %s' % ' '.join(git_command))
-        logger.debug('Return: %s' % subprocess.check_output(git_command))
+        logger.debug('Return: %s' % subprocess.check_output(
+            git_command,
+            stderr=subprocess.STDOUT
+        ))
 
     def update(self, tag=None):
         '''
