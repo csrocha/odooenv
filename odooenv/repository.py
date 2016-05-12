@@ -118,14 +118,15 @@ class SVNRepository(RepositoryBase):
 
 
 class GITRepository(RepositoryBase):
-    def __init__(self, local_path, remote_url, branch=None, shallow=False):
+    def __init__(self, local_path, remote_url,
+                 branch=None, shallow=False):
         self = RepositoryBase.__init__(self,
                                        local_path,
                                        remote_url,
                                        branch=branch,
                                        shallow=shallow)
 
-    def update(self):
+    def update(self, tag=None):
         if self.branch:
             git_command = ['git']
             git_command.extend(['-C', self.local_path])
@@ -138,6 +139,8 @@ class GITRepository(RepositoryBase):
         git_command.extend(['pull'])
         if self.shallow:
             git_command.extend(['--depth', '1'])
+        if tag:
+            git_command.extend([self.remote_url, tag])
         subprocess.call(git_command)
 
     def checkout(self):
@@ -148,6 +151,11 @@ class GITRepository(RepositoryBase):
             git_command.extend(['--branch', str(self.branch)])
         git_command.extend([self.remote_url, self.local_path])
         subprocess.call(git_command)
+
+    def current_tag(self):
+        git_command = ['git', 'describe']
+        git_command.extend(['--tags'])
+        return subprocess.check_output(git_command)
 
     _url_re_ = [
         re.compile('^https:.*\.git$'),

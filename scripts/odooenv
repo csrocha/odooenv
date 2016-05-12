@@ -437,93 +437,15 @@ def start(args, odooenv=None):
     extracommands = args.extracommands \
         if args.extracommands is not None else odooenv.extracommands
 
-    options = []
-
-    if not lexists(odooenv.server_config_filename):
-        options += ['--save']
-        addons_path = odooenv.get_addonsourcepath()
-        options += ['--addons-path', addons_path] if addons_path else []
-
-    if database and database is not None:
-        options += ['-d', database]
-
-    if odooenv.server_config_filename:
-        options += ['--config', odooenv.server_config_filename]
-
-    if debug:
-        options += ['--debug']
-
-    if production:
-        options += ['--without-demo=all']
-
-    if extracommands is not None:
-        options += extracommands
-
-    if snapshot:
-        if database is None:
-            print "ERROR: Cant recover snapshot %s," \
-                "because not defined database" % snapshot
-            return -1
-        print "Recovering snapshot '%s' of the database '%s'." % \
-            (snapshot, database)
-        if not tools.recover_snapshot(database, snapshot, odooenv):
-            print "ERROR: Cant recover snapshot %s." % snapshot
-            return -1
-
-    # Setup pid file
-    pid_filename = join(odooenv.root_path, 'var', 'server.pid')
-    if not lexists(dirname(pid_filename)):
-        makedirs(dirname(pid_filename))
-    options += ['--pidfile', pid_filename]
-
-    try:
-        if lexists(pid_filename):
-            pid = int(''.join(open(pid_filename).readlines()))
-            kill(pid, 0)
-            print "A server is running or .server_pid has not been deleted" \
-                " at the end of the server."
-            print "Execute 'odooenv stop' to stop the server and" \
-                " remove this file."
-            return -1
-        print "Running with options: %s" % ' '.join(options)
-        odooenv.execute('odoo.py', options, no_wait=not debug)
-    except KeyboardInterrupt:
-        print "KeyboardInterrupt event."
-    except OSError, m:
-        import sys
-        import traceback
-        print "Environment Error."
-        print "ERROR: %s" % m
-        traceback.print_exc(file=sys.stdout)
-        print "If you move the environment please rebuild default" \
-            " python environment and check directories in environment.yml file."
-        print "If all ok, be sure you executed 'odooenv install'" \
-            " before run this command."
-
+    return -1 if not odooenv.start(database, snapshot, debug,
+                                   production, extracommands) else 0
 
 def stop(args, odooenv=None):
     """
     Stop the server.
     """
     odooenv = odooenv or OdooEnvironment()
-    pid_filename = join(odooenv.root_path, 'var', 'server.pid')
-    if lexists(pid_filename):
-        try:
-            with open(pid_filename, 'r') as f:
-                pid = int(f.readline())
-            os.kill(pid, signal.SIGTERM if True else signal.SIGKILL)
-            sleep(3)
-            return 0
-        except OSError:
-            print "No server running."
-            return -1
-        finally:
-            if lexists(pid_filename):
-                os.remove(pid_filename)
-    else:
-        print "No pid information."
-        return -1
-
+    return -1 if not odooenv.stop() else 0
 
 def search_models(args, odooenv=None):
     """
@@ -1172,7 +1094,7 @@ def nuke(args, odooenv=None):
             return -1
 
         cur.execute("""
-                    DROP TABLE %s CASCADE;
+                    DROP TABLE IF EXISTS %s CASCADE;
                     """ % ', '.join(rel_tables))
 
     print "Removing items"
@@ -1272,6 +1194,7 @@ def rename_module(args, odooenv=None):
 
     actual_name = args.module[0]
     new_name = args.module[1]
+    print "Renaming %s to %s" % (actual_name, new_name)
     dict_parms = {'actual_name': actual_name, 'new_name': new_name}
 
     i18n_RES = [
@@ -1282,6 +1205,7 @@ def rename_module(args, odooenv=None):
     ]
 
     # Rename in filesystem
+    print "In filesystem"
     actual_path = os.getcwd()
     for addon in odooenv.addons(actual_name):
         print "Renaming in %s" % addon.path
@@ -1296,6 +1220,7 @@ def rename_module(args, odooenv=None):
     os.chdir(actual_path)
 
     # Rename in database
+    print "In database %s" % args.database[0]
     cur.execute("UPDATE ir_module_module SET name = %s WHERE name = %s",
                 (new_name, actual_name))
 
@@ -1317,7 +1242,70 @@ def rename_module(args, odooenv=None):
     cur.execute("UPDATE ir_translation SET module = %s WHERE module = %s;",
                 ("module_%s" % new_name, "module_%s" % actual_name))
 
-    print ("Module renamed.")
+    conn.commit()
+    print ("Done.")
+
+
+def lang_update(args, odooenv=None):
+    """
+    Update module language directory.
+    """
+    odooenv = odooenv or OdooEnvironment()
+
+    database = args.database
+    addons = args.addons[0].split(',')
+    languages = args.lang[0].split(',')
+
+    for addon in addons:
+        source_path = join(odooenv.sources_path, addon)
+        for lang in languages:
+            lang_path = join(source_path, 'i18n')
+            if not lexists(lang_path):
+                makedirs(lang_path)
+            options = ['--stop-after-init']
+            options += ['-d', database[0]]
+            options += ['--modules', addon]
+            options += ['-l', lang]
+            options += ['--i18n-export', join(lang_path, '%s.po' % lang)]
+            options += ['--config', odooenv.server_config_filename]
+            print "Generate language %s for addon %s." % (lang, addon)
+            odooenv.execute('odoo.py', options)
+
+    print ("Done.")
+
+
+def inactive(args, odooenv=None):
+    """
+    Inactive entry.
+    """
+    odooenv = odooenv or OdooEnvironment()
+
+    import psycopg2
+
+    conn = psycopg2.connect("dbname=%s" % args.database[0])
+    cur = conn.cursor()
+
+    model = args.model[0].replace('.', '_')
+    _id = args.id
+
+    cur.execute("UPDATE %s SET active = false WHERE id in %s" %
+                (model, '(%s)' % ','.join(map(str, _id))))
+    conn.commit()
+    print ("Done.")
+
+
+def glhook(args, odooenv=None):
+    """
+    GitLab Hook for odooenv environment.
+    """
+    odooenv = odooenv or OdooEnvironment()
+
+    from odooenv import glhook
+
+    if not glhook.start(odooenv):
+        print ("No glhook configuration.")
+
+    print ("Done.")
 
 
 def main():
@@ -1532,18 +1520,17 @@ def main():
     parser_search_data = subparsers_search.add_parser(
         'data', help=search_data.__doc__)
     parser_search_data.add_argument('data',
-                                      metavar='data', type=str, nargs='*',
-                                      help='Data xml id.')
+                                    metavar='data', type=str, nargs='*',
+                                    help='Data xml id.')
     parser_search_data.set_defaults(func=search_data)
 
     # The search field command
     parser_search_field = subparsers_search.add_parser(
         'field', help=search_fields.__doc__)
     parser_search_field.add_argument('fields',
-                                      metavar='fields', type=str, nargs='*',
-                                      help='Data xml id.')
+                                     metavar='fields', type=str, nargs='*',
+                                     help='Data xml id.')
     parser_search_field.set_defaults(func=search_fields)
-
 
     # The show_addon command
     parser_show_addon = subparsers.add_parser('show', help=show_addon.__doc__)
@@ -1758,7 +1745,7 @@ def main():
                                parameters=None)
 
     # The nuke module command
-    parser_nuke = subparsers.add_parser('nuke', help=repath.__doc__)
+    parser_nuke = subparsers.add_parser('nuke', help=nuke.__doc__)
     parser_nuke.add_argument('--config', '-c', metavar='config',
                              type=str, nargs='?',
                              help='Environment configuration file.')
@@ -1773,7 +1760,7 @@ def main():
                              parameters=None)
 
     # Rename module command
-    parser_rename = subparsers.add_parser('rename', help=repath.__doc__)
+    parser_rename = subparsers.add_parser('rename', help=rename.__doc__)
     parser_rename.add_argument('--config', '-c', metavar='config',
                                type=str, nargs='?',
                                help='Environment configuration file.')
@@ -1786,6 +1773,31 @@ def main():
     parser_rename.set_defaults(func=rename_module,
                                config=defaults.config.filename,
                                parameters=None)
+
+    # Inactive entity command
+    parser_inactive = subparsers.add_parser('inactive', help=inactive.__doc__)
+    parser_inactive.add_argument('--config', '-c', metavar='config',
+                                 type=str, nargs='?',
+                                 help='Environment configuration file.')
+    parser_inactive.add_argument('database', metavar='database',
+                                 type=str, nargs=1,
+                                 help='Database origin')
+    parser_inactive.add_argument('model', metavar='model',
+                                 type=str, nargs=1,
+                                 help='Model to disable')
+    parser_inactive.add_argument('id', metavar='id',
+                                 type=int, nargs='+',
+                                 help='Entity IDs to disable')
+    parser_inactive.set_defaults(func=inactive,
+                                 config=defaults.config.filename)
+
+    # Gitlab Hook export
+    parser_glhook = subparsers.add_parser('glhook', help=glhook.__doc__)
+    parser_glhook.add_argument('--config', '-c', metavar='config',
+                               type=str, nargs='?',
+                               help='Environment configuration file.')
+    parser_glhook.set_defaults(func=glhook,
+                               config=defaults.config.filename)
 
     # Prepare autocomplete
     argcomplete.autocomplete(parser)

@@ -23,11 +23,13 @@
 import re
 import virtualenv
 import sys
+import signal
 import time
+from time import sleep
 import logging
 import logging.config
-from os import makedirs, walk, listdir
-from os.path import abspath, join, exists, dirname, basename, realpath
+from os import makedirs, walk, listdir, kill
+from os.path import abspath, join, exists, dirname, basename, realpath, lexists
 from installable import Installable
 from odooenv import tools
 from virtualenv import subprocess
@@ -365,6 +367,15 @@ class OdooEnvironment:
         else:
             return []
 
+    def get_glhooks(self):
+        """
+        Return dict of GitLab Webhooks.
+        """
+        if self._config.has('glhook'):
+            return self._config.glhook.as_dict()
+        else:
+            return False
+
     def get_addonsourcepath(self):
         """
         Return a list of path to addons directories.
@@ -372,7 +383,8 @@ class OdooEnvironment:
         if getattr(self, 'addonsourcepath', False):
             return self.addonsourcepath
 
-        if self.server_config and self.server_config.has_option('options', 'addons_path'):
+        if self.server_config and self.server_config.has_option('options',
+                                                                'addons_path'):
             paths = self.server_config.get('options', 'addons_path')
             for p in paths.split(','):
                 p = os.path.abspath(p)
@@ -395,6 +407,117 @@ class OdooEnvironment:
 
         self.addonsourcepath = addons_path
         return addons_path
+
+    def start(self,
+              database=None,
+              snapshot=None,
+              debug=False,
+              production=True,
+              extracommands=None):
+        options = []
+
+        if not lexists(self.server_config_filename):
+            options += ['--save']
+            addons_path = self.get_addonsourcepath()
+            options += ['--addons-path', addons_path] if addons_path else []
+
+        if database and database is not None:
+            options += ['-d', database]
+
+        if self.server_config_filename:
+            options += ['--config', self.server_config_filename]
+
+        if debug:
+            options += ['--debug']
+
+        if production:
+            options += ['--without-demo=all']
+
+        if extracommands is not None:
+            options += extracommands
+
+        if snapshot:
+            if database is None:
+                print "ERROR: Cant recover snapshot %s," \
+                    "because not defined database" % snapshot
+                return -1
+            print "Recovering snapshot '%s' of the database '%s'." % \
+                (snapshot, database)
+            if not tools.recover_snapshot(database, snapshot, self):
+                print "ERROR: Cant recover snapshot %s." % snapshot
+                return False
+
+        # Setup pid file
+        pid_filename = join(self.root_path, 'var', 'server.pid')
+        if not lexists(dirname(pid_filename)):
+            makedirs(dirname(pid_filename))
+        options += ['--pidfile', pid_filename]
+
+        try:
+            if lexists(pid_filename):
+                pid = int(''.join(open(pid_filename).readlines()))
+                kill(pid, 0)
+                print "A server is running or .server_pid has not been deleted" \
+                    " at the end of the server."
+                print "Execute 'odooenv stop' to stop the server and" \
+                    " remove this file."
+                return False
+            print "Running with options: %s" % ' '.join(options)
+            self.execute('odoo.py', options, no_wait=not debug)
+        except KeyboardInterrupt:
+            print "KeyboardInterrupt event."
+        except OSError, m:
+            import sys
+            import traceback
+            print "Environment Error."
+            print "ERROR: %s" % m
+            traceback.print_exc(file=sys.stdout)
+            print "If you move the environment please rebuild default" \
+                " python environment and check directories in environment.yml file."
+            print "If all ok, be sure you executed 'odooenv install'" \
+                " before run this command."
+            return False
+        return True
+
+    def stop(self):
+        pid_filename = join(self.root_path, 'var', 'server.pid')
+        if lexists(pid_filename):
+            try:
+                with open(pid_filename, 'r') as f:
+                    pid = int(f.readline())
+                os.kill(pid, signal.SIGTERM if True else signal.SIGKILL)
+                sleep(3)
+                return 0
+            except OSError:
+                print "No server running."
+                return -1
+            finally:
+                if lexists(pid_filename):
+                    os.remove(pid_filename)
+        else:
+            print "No pid information."
+            return False
+
+    def reinstall(self):
+        home_dir, lib_dir, inc_dir, bin_dir = virtualenv.path_locations(
+            self.root_path)
+        virtualenv.install_python(home_dir, lib_dir, inc_dir, bin_dir,
+                                  False, True)
+        self.install()
+
+    def install(self):
+        for app in odooenv.installables:
+            print "Installing %s%s" % (app.name,
+                                    ' as developer' if developer_mode else '')
+            if app.install(developer_mode):
+                print "Successfull installed"
+            else:
+                print """
+                ERROR: Can't confirm the application or module is installed.
+                Please, execute 'odooenv test base' to check if server is working
+                To check if client is working execute 'odoo client'
+                If not working, recreate the python environment and try again.
+                """
 
 
 def create_environment(path, config_ori):
