@@ -94,8 +94,10 @@ class GitLabHook(object):
                 self.environment.stop()
                 self.environment.start()
 
+            self.logger.info("Done.")
             return Response('Updated')
         else:
+            self.logger.info("Ignored by Operation.")
             return Response('Ignored by Operation')
 
     def wsgi_app(self, environ, start_response):
