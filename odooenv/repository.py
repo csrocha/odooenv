@@ -155,7 +155,7 @@ class GITRepository(RepositoryBase):
     def current_tag(self):
         git_command = ['git', 'describe']
         git_command.extend(['--tags'])
-        return subprocess.check_output(git_command)
+        return subprocess.check_output(git_command).strip()
 
     _url_re_ = [
         re.compile('^https:.*\.git$'),
