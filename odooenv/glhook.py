@@ -96,7 +96,7 @@ class GitLabHook(object):
                 self.environment.start()
 
             self.logger.info("Update module list in servers.")
-            for server in self.servers:
+            for server in self.environment.servers:
                 server.update_module_list()
 
             self.logger.info("Updated.")
