@@ -74,7 +74,8 @@ class GitLabHook(object):
             uri = self.hook.get('uri', None)
             branch = self.hook.get('branch', None)
 
-            repo = GITRepository(root_path, uri, branch=branch)
+            repo = GITRepository(root_path, uri,
+                                 branch=branch, logger=self.logger)
             current_tag = repo.current_tag()
             repo.update(tag=tag)
 
