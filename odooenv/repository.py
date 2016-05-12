@@ -127,13 +127,10 @@ class GITRepository(RepositoryBase):
                                        shallow=shallow)
 
     def update(self, tag=None):
-        if self.branch:
-            git_command = ['git']
-            git_command.extend(['-C', self.local_path])
-            git_command.extend(['checkout'])
-            git_command.extend([str(self.branch)])
-            subprocess.call(git_command)
-
+        '''
+        Update repository.
+        '''
+        # Download updates.
         git_command = ['git']
         git_command.extend(['-C', self.local_path])
         git_command.extend(['pull'])
@@ -143,7 +140,25 @@ class GITRepository(RepositoryBase):
             git_command.extend([self.remote_url, tag])
         subprocess.call(git_command)
 
+        # Change to branch.
+        if self.branch:
+            git_command = ['git']
+            git_command.extend(['-C', self.local_path])
+            git_command.extend(['checkout'])
+            git_command.extend(['-f'])
+            git_command.extend([str(self.branch)])
+            subprocess.call(git_command)
+
+        # Update submodules.
+        git_command = ['git']
+        git_command.extend(['-C', self.local_path])
+        git_command.extend(['submodule', 'update', '--recursive'])
+        subprocess.call(git_command)
+
     def checkout(self):
+        '''
+        Create new repository.
+        '''
         git_command = ['git', 'clone']
         if self.shallow:
             git_command.extend(['--depth', '1', '--single-branch'])
@@ -153,6 +168,9 @@ class GITRepository(RepositoryBase):
         subprocess.call(git_command)
 
     def current_tag(self):
+        '''
+        Return current tag.
+        '''
         git_command = ['git', 'describe']
         git_command.extend(['--tags'])
         return subprocess.check_output(git_command).strip()
