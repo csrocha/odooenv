@@ -81,20 +81,25 @@ class GitLabHook(object):
             current_prefix, current_major, current_minor, current_patch = \
                 tag_split(current_tag)
 
-            self.logger.info("Current tag: %s", current_tag)
-            self.logger.info("New tag: %s", tag)
+            self.logger.info("Replacing tag %s with %s.", (current_tag, tag))
 
             if int(current_major) < int(major):
                 self.logger.info("Reinstalling.")
                 self.environment.stop()
                 self.environment.reinstall()
+                self.environment.enable_addons()
                 self.environment.start()
             elif int(current_minor) < int(minor):
                 self.logger.info("Restarting.")
                 self.environment.stop()
+                self.environment.enable_addons()
                 self.environment.start()
 
-            self.logger.info("Done.")
+            self.logger.info("Update module list in servers.")
+            for server in self.servers:
+                server.update_module_list()
+
+            self.logger.info("Updated.")
             return Response('Updated')
         else:
             self.logger.info("Ignored by Operation.")

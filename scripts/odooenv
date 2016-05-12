@@ -32,31 +32,6 @@ except:
         "Please install pysvn. Debian: sudo aptitude install python-svn"
 
 
-def _is_server_installed(odooenv):
-    logger = odooenv.logger
-    try:
-        addons_path = odooenv.get_addonsourcepath()
-    except:
-        if addons_path == "":
-            logger.error("Server is not installed")
-        return False
-
-    if not addons_path:
-        logger.error("Install the server. If not try the following:")
-        logger.error(
-            "Check if PYTHON_EGG_CACHE if set in writeable directory.\n"
-            "Your can use:\nexport PYTHON_EGG_CACHE=%s/.python-eggs" %
-            odooenv.root)
-        print "Is PYTHON_EGG_CACHE defined? Check Log."
-        return False
-
-    if not lexists(addons_path):
-        print "Execute 'odooenv install' before 'odooenv enable'"
-        return False
-
-    return True
-
-
 def clear(args, odooenv=None):
     """
     Clear the python virtual environment.
@@ -243,11 +218,6 @@ def enable_addon(args, odooenv=None):
     """
     odooenv = odooenv or OdooEnvironment()
 
-    if not _is_server_installed(odooenv):
-        return False
-
-    addons_path = odooenv.get_addonsourcepath()
-
     ignore_filter = re.compile(args.ignore_filter) \
         if args.ignore_filter is not None else None
 
@@ -265,52 +235,17 @@ def enable_addon(args, odooenv=None):
 
     c_t = len(to_install)
 
+    addons_path = odooenv.get_addonsourcepath()
     print "Target directory:", addons_path
 
     if not to_install <= addons_set:
         print "No available addons '%s'." % ' '.join(to_install)
         return -1
 
-    who_install = {}
-    yet_enabled = set()
+    n = odooenv.enable_addons(to_install)
 
-    c = 0
-
-    while to_install:
-        addon_name = to_install.pop()
-
-        if addon_name in addons:
-            addon = addons[addon_name]
-        else:
-            print "ERROR: %s try to install %s, but is unavailable." % \
-                (who_install[addon_name], addon_name)
-            continue
-
-        for item in set(addon.depends):
-            who_install[item] = addon_name
-
-        if not ignore_depends:
-            to_install.update(addon.depends)
-
-        if addon.is_enable(odooenv):
-            print "Updating %s (%i:%s)" % \
-                (addon_name, len(to_install), addon.path)
-        else:
-            print "Installing %s (%i:%s)" % \
-                (addon_name, len(to_install), addon.path)
-
-        yet_enabled.add(addon_name)
-        to_install = to_install - yet_enabled
-        addon.enable(odooenv, force=True)
-        addon.install_externals(odooenv)
-
-        if 'base' in to_install:
-            to_install.remove('base')
-
-        c = c + 1
-
-    if c_t > c:
-            print "Can't install %s modules" % (c_t - c)
+    if n:
+            print "Can't install %s modules" % n
 
     for server in odooenv.servers:
         server.update_module_list()

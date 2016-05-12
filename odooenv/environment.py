@@ -522,6 +522,80 @@ class OdooEnvironment:
                     "If not working,"\
                     " recreate the python environment and try again."
 
+    def server_installed(self):
+        logger = self.logger
+        try:
+            addons_path = self.get_addonsourcepath()
+        except:
+            if addons_path == "":
+                logger.error("Server is not installed")
+            return False
+
+        if not addons_path:
+            logger.error("Install the server. If not try the following:")
+            logger.error(
+                "Check if PYTHON_EGG_CACHE if set in writeable directory.\n"
+                "Your can use:\nexport PYTHON_EGG_CACHE=%s/.python-eggs" %
+                self.root)
+            return False
+
+        if not lexists(addons_path):
+            logger.error("Execute 'odooenv install' before 'odooenv enable'")
+            return False
+
+        return True
+
+    def enable_addons(self, addons=None):
+        if not self.server_installed():
+            logger.error("Server is not installed.")
+            return False
+
+        if addons is None:
+            addons = dict([(addon.token, addon) for addon in self.addons()])
+        addons_set = set(addons.keys())
+
+        to_intall = addons_set
+        yet_enabled = set()
+        c = 0
+        c_t = len(to_install)
+
+        while to_install:
+            addon_name = to_install.pop()
+
+            # Ignore base addon
+            if addon_name == 'base':
+                continue
+
+            # Ignore modules not available.
+            if addon_name in addons:
+                addon = addons[addon_name]
+            else:
+                logger.error("ERROR: %s try to install %s, but is unavailable."
+                             % (who_install[addon_name], addon_name))
+                continue
+
+            for item in set(addon.depends):
+                who_install[item] = addon_name
+
+            if not ignore_depends:
+                to_install.update(addon.depends)
+
+            if addon.is_enable(odooenv):
+                logger.info("Updating %s (%i:%s)" %
+                            (addon_name, len(to_install), addon.path))
+            else:
+                logger.info("Installing %s (%i:%s)" %
+                    (addon_name, len(to_install), addon.path))
+
+            yet_enabled.add(addon_name)
+            to_install = to_install - yet_enabled
+            addon.enable(self, force=True)
+            addon.install_externals(self)
+
+            c = c + 1
+
+        return (c_t - c)
+
 
 def create_environment(path, config_ori):
     """Create environment structure.
