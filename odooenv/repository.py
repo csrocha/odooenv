@@ -122,61 +122,46 @@ class SVNRepository(RepositoryBase):
 
 class GITRepository(RepositoryBase):
     def __init__(self, local_path, remote_url,
-                 branch=None, shallow=False):
+                 branch=None, shallow=False, logger=None):
         self = RepositoryBase.__init__(self,
                                        local_path,
                                        remote_url,
                                        branch=branch,
-                                       shallow=shallow)
+                                       shallow=shallow,
+                                       logger=logger)
+
+    def _git_(self, op):
+        '''
+        GIT Command.
+        '''
+        logger = self.logger
+        git_command = ['git']
+        git_command.extend(['-C', self.local_path])
+        git_command.extend(op)
+        logger.debug('Executing: %s' % ' '.join(git_command))
+        logger.debug('Return: %s' % subprocess.check_output(git_command))
 
     def update(self, tag=None):
         '''
         Update repository.
         '''
-        logger = self.logger
 
         # Download updates.
-        git_command = ['git']
-        git_command.extend(['-C', self.local_path])
-        git_command.extend(['fetch'])
-        if self.shallow:
-            git_command.extend(['--depth', '1'])
-        logger.debug('Executing: %s' % ' '.join(git_command))
-        logger.debug('Return: %s' % subprocess.check_output(git_command))
+        self._git_(['fetch'] + ['--depth', '1'] if self.shallow else [])
 
         if tag:
             # Stage changes.
-            git_command = ['git']
-            git_command.extend(['-C', self.local_path])
-            git_command.extend(['stage'])
-            git_command.extend(['-f'])
-            logger.debug('Executing: %s' % ' '.join(git_command))
-            logger.debug('Return: %s' % subprocess.check_output(git_command))
+            self._git_(['stage', '-f'])
 
             # Change to tag
-            git_command = ['git']
-            git_command.extend(['-C', self.local_path])
-            git_command.extend(['checkout'])
-            git_command.extend([tag])
-            logger.debug('Executing: %s' % ' '.join(git_command))
-            logger.debug('Return: %s' % subprocess.check_output(git_command))
+            self._git_(['checkout', tag])
 
         # Change to branch.
         elif self.branch:
-            git_command = ['git']
-            git_command.extend(['-C', self.local_path])
-            git_command.extend(['checkout'])
-            git_command.extend(['-f'])
-            git_command.extend([str(self.branch)])
-            logger.debug('Executing: %s' % ' '.join(git_command))
-            logger.debug('Return: %s' % subprocess.check_output(git_command))
+            self._git_(['checkout', '-f', str(self.branch)])
 
         # Update submodules.
-        git_command = ['git']
-        git_command.extend(['-C', self.local_path])
-        git_command.extend(['submodule', 'update', '--recursive'])
-        logger.debug('Executing: %s' % ' '.join(git_command))
-        logger.debug('Return: %s' % subprocess.check_output(git_command))
+        self._git_(['submodule', 'update', '--recursive'])
 
     def checkout(self):
         '''
