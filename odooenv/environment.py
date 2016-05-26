@@ -545,17 +545,23 @@ class OdooEnvironment:
 
         return True
 
-    def enable_addons(self, addons=None):
+    def enable_addons(self, addons=None, ignore_depends=False):
+        logger = self._logger
+
         if not self.server_installed():
             logger.error("Server is not installed.")
             return False
+
+        if isinstance(addons, set):
+            addons = {a.token: a for a in self.addons() if a.token in addons}
 
         if addons is None:
             addons = dict([(addon.token, addon) for addon in self.addons()])
         addons_set = set(addons.keys())
 
-        to_intall = addons_set
+        to_install = addons_set
         yet_enabled = set()
+        who_install = {}
         c = 0
         c_t = len(to_install)
 
@@ -580,12 +586,12 @@ class OdooEnvironment:
             if not ignore_depends:
                 to_install.update(addon.depends)
 
-            if addon.is_enable(odooenv):
+            if addon.is_enable(self):
                 logger.info("Updating %s (%i:%s)" %
                             (addon_name, len(to_install), addon.path))
             else:
                 logger.info("Installing %s (%i:%s)" %
-                    (addon_name, len(to_install), addon.path))
+                            (addon_name, len(to_install), addon.path))
 
             yet_enabled.add(addon_name)
             to_install = to_install - yet_enabled
