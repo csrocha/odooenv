@@ -335,10 +335,10 @@ class OdooEnvironment:
                     db.user,
                     db.password)
             else:
-                print "Can't connect to server %s."\
-                    " Incomplete section 'databases'."\
-                    " Needs name, user & password for each database."\
-                    % (db.name,)
+                print("Can't connect to server %s."
+                      " Incomplete section 'databases'."
+                      " Needs name, user & password for each database."
+                      % (db.name,))
 
     def execute(self, command, args, no_wait=False,
                 check_for_termination=False):
@@ -396,14 +396,17 @@ class OdooEnvironment:
 
             python_exe = join(self.root, 'bin', 'python')
 
-            _query_addons = """
-            import pkg_resources, os.path
-            print pkg_resources.resource_filename('openerp', 'addons')
-            """
-            p = subprocess.Popen(
-                [python_exe, '-c', _query_addons], stdout=subprocess.PIPE,
-                stdin=subprocess.PIPE, stderr=DEVNULL)
-            addons_path = p.stdout.readline().strip() or False
+            p = subprocess.Popen([python_exe],
+                                 stdout=subprocess.PIPE,
+                                 stdin=subprocess.PIPE,
+                                 stderr=DEVNULL)
+            out, err = p.communicate(
+                "import pkg_resources, os.path\n"
+                "out = pkg_resources.resource_filename('openerp', 'addons')\n"
+                "print(out)\n"
+                "exit()\n"
+            )
+            addons_path = out.strip() or False
 
         self.addonsourcepath = addons_path
         return addons_path
@@ -438,13 +441,13 @@ class OdooEnvironment:
 
         if snapshot:
             if database is None:
-                print "ERROR: Cant recover snapshot %s," \
-                    "because no database defined." % snapshot
+                print("ERROR: Cant recover snapshot %s,"
+                      "because no database defined." % snapshot)
                 return -1
-            print "Recovering snapshot '%s' of the database '%s'." % \
-                (snapshot, database)
+            print("Recovering snapshot '%s' of the database '%s'." %
+                  (snapshot, database))
             if not tools.recover_snapshot(database, snapshot, self):
-                print "ERROR: Cant recover snapshot %s." % snapshot
+                print("ERROR: Cant recover snapshot %s." % snapshot)
                 return False
 
         # Setup pid file
@@ -457,26 +460,26 @@ class OdooEnvironment:
             if lexists(pid_filename):
                 pid = int(''.join(open(pid_filename).readlines()))
                 kill(pid, 0)
-                print "A server is running or .server_pid has not been deleted" \
-                    " at the end of the server."
-                print "Execute 'odooenv stop' to stop the server and" \
-                    " remove this file."
+                print("A server is running or .server_pid has not been deleted"
+                      " at the end of the server.")
+                print("Execute 'odooenv stop' to stop the server and"
+                      " remove this file.")
                 return False
-            print "Running with options: %s" % ' '.join(options)
+            print("Running with options: %s" % ' '.join(options))
             self.execute('odoo.py', options, no_wait=not debug)
         except KeyboardInterrupt:
-            print "KeyboardInterrupt event."
-        except OSError, m:
+            print("KeyboardInterrupt event.")
+        except OSError as m:
             import sys
             import traceback
-            print "Environment Error."
-            print "ERROR: %s" % m
+            print("Environment Error.")
+            print("ERROR: %s" % m)
             traceback.print_exc(file=sys.stdout)
-            print "If you move the environment please rebuild default" \
-                " python environment and check directories in"\
-                " environment.yml file."
-            print "If all ok, be sure you executed 'odooenv install'" \
-                " before run this command."
+            print("If you move the environment please rebuild default"
+                  " python environment and check directories in"
+                  " environment.yml file.")
+            print("If all ok, be sure you executed 'odooenv install'"
+                  " before run this command.")
             return False
         return True
 
@@ -490,13 +493,13 @@ class OdooEnvironment:
                 sleep(3)
                 return 0
             except OSError:
-                print "No server running."
+                print("No server running.")
                 return -1
             finally:
                 if lexists(pid_filename):
                     os.remove(pid_filename)
         else:
-            print "No pid information."
+            print("No pid information.")
             return False
 
     def reinstall(self):
@@ -508,19 +511,18 @@ class OdooEnvironment:
 
     def install(self, developer_mode=False):
         for app in self.installables:
-            print "Installing %s%s" % (app.name,
-                                       ' as developer'
-                                       if developer_mode else '')
+            print("Installing %s%s" %
+                  (app.name, ' as developer' if developer_mode else ''))
             if app.install(developer_mode):
-                print "Successfull installed"
+                print("Successfull installed")
             else:
-                print "ERROR:"\
-                    " Can't confirm the application or module is installed.\n"\
-                    "Please, execute 'odooenv test base' to check if server is"\
-                    " working.\n"\
-                    "To check if client is working execute 'odoo client'.\n"\
-                    "If not working,"\
-                    " recreate the python environment and try again."
+                print("ERROR:"
+                      " Can't confirm the application or module is installed.\n"
+                      "Please, execute 'odooenv test base' to check if server"
+                      "is working.\n"
+                      "To check if client is working execute 'odoo client'.\n"
+                      "If not working,"
+                      " recreate the python environment and try again.")
 
     def server_installed(self):
         logger = self.logger
