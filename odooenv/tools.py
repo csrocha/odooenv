@@ -2,7 +2,7 @@
 ##############################################################################
 #
 #    OdooEnv, Odoo Environment Administrator
-#    Copyright (C) 2011-2015 Coop Trab Moldeo Interactive 
+#    Copyright (C) 2011-2015 Coop Trab Moldeo Interactive
 #    (<http://www.moldeointeractive.com.ar>).
 #
 #    This program is free software: you can redistribute it and/or modify
@@ -73,7 +73,7 @@ class Struct(object):
 
     def get(self, key, default=None):
         return self.__dict__.get(key, default)
-    
+
     def __iter__(self):
         for k in self.__dict__:
             yield (k, self.__dict__[k])
@@ -202,12 +202,12 @@ def call(popenargs, logger, stdout_log_level=DEBUG, stderr_log_level=ERROR, **kw
     logger.info("Running: " + ' '.join(popenargs))
     child = subprocess.Popen(popenargs, stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE, **kwargs)
- 
+
     log_level = {child.stdout: stdout_log_level,
                  child.stderr: stderr_log_level}
     output    = {child.stdout: [],
                  child.stderr: []}
- 
+
     def check_io():
         ready_to_read = select.select([child.stdout, child.stderr], [], [], 1000)[0]
         for io in ready_to_read:
@@ -215,13 +215,13 @@ def call(popenargs, logger, stdout_log_level=DEBUG, stderr_log_level=ERROR, **kw
             if line:
                 output[io].append(line[:-1])
                 logger.log(log_level[io], line[:-1])
- 
+
     # keep checking stdout/stderr until the child exits
     while child.poll() is None:
         check_io()
- 
+
     check_io()  # check again to catch anything after the process exits
- 
+
     return output[child.stdout], output[child.stderr], child.wait()
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

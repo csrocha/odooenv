@@ -25,6 +25,7 @@ import os
 from re import compile as re_c
 import ast
 
+
 class Addon:
         def __init__(self, addon_config_path):
             """
@@ -277,14 +278,13 @@ class Addon:
                         join(p, f) for f in fs if re_file.search(f)
                     ]))
 
-            Q = []
-
             for filename in search_files:
                 with open(filename) as f:
                     try:
                         root = ast.parse(f.read(), filename=filename)
                     except:
-                        print "Filename: %s has errors."
+                        raise RuntimeError("Filename: {} has errors."
+                                           .format(filename))
 
                     for node in ast.walk(root):
                         if isinstance(node, ast_type) and filtre(node):

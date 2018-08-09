@@ -28,6 +28,7 @@ import time
 from time import sleep
 import logging
 import logging.config
+import collections
 from os import makedirs, walk, listdir, kill
 from os.path import abspath, join, exists, dirname, basename, realpath, lexists
 from installable import Installable
@@ -321,6 +322,11 @@ class OdooEnvironment:
     def servers(self):
         cp = self.server_config
 
+        if not cp:
+            raise RuntimeError("Is not server configured.\n"
+                               "Plase setup key server in your environment"
+                               " configuration.")
+
         server = cp.get('options', 'xmlrpc_interface') or 'localhost'
         port = cp.get('options', 'xmlrpc_port') or '8069'
 
@@ -411,6 +417,56 @@ class OdooEnvironment:
         self.addonsourcepath = addons_path
         return addons_path
 
+    def pid_filename(self):
+        return join(self.root_path, 'var', 'server.pid')
+
+    def pid(self):
+        pid_filename = self.pid_filename()
+        if lexists(pid_filename):
+            return int(''.join(open(pid_filename).readlines()))
+        else:
+            return None
+
+    def _optcheck_setup(self, **kwargs):
+        options = []
+        if not self.server_config_filename \
+                or not lexists(self.server_config_filename):
+            options += ['--save']
+            addons_path = self.get_addonsourcepath()
+            options += ['--addons-path', addons_path] if addons_path else []
+        return options
+
+    def _optcheck_database(self, database=None, **kwargs):
+        if database and database is not None:
+            return ['-d', kwargs['database']]
+        return []
+
+    def _optcheck_config(self, **kwargs):
+        if self.server_config_filename:
+            return ['--config', self.server_config_filename]
+        return []
+
+    def _optcheck_debug(self, debug=False, **kwargs):
+        if debug:
+            return ['--debug']
+        return []
+
+    def _optcheck_production(self, production=False, **kwargs):
+        if production:
+            return ['--without-demo=all']
+        return []
+
+    def _optcheck_extracommands(self, extracommands=None, **kwargs):
+        if extracommands is not None:
+            return extracommands
+
+    def _optcheck_pid(self, **kwargs):
+        ''' Setup pid file '''
+        pid_filename = self.pid_filename()
+        if not lexists(dirname(pid_filename)):
+            makedirs(dirname(pid_filename))
+        return ['--pidfile', pid_filename]
+
     def start(self,
               database=None,
               snapshot=None,
@@ -419,25 +475,17 @@ class OdooEnvironment:
               extracommands=None):
         options = []
 
-        if not lexists(self.server_config_filename):
-            options += ['--save']
-            addons_path = self.get_addonsourcepath()
-            options += ['--addons-path', addons_path] if addons_path else []
+        self._logger.info("Server config filename: %s",
+                          self.server_config_filename)
 
-        if database and database is not None:
-            options += ['-d', database]
+        options = [p
+                   for fname in dir(self) if fname.startswith('_optcheck_')
+                   for p in getattr(self, fname)(database=database,
+                                                 debug=debug,
+                                                 production=production,
+                                                 extracommands=extracommands)
+                   ]
 
-        if self.server_config_filename:
-            options += ['--config', self.server_config_filename]
-
-        if debug:
-            options += ['--debug']
-
-        if production:
-            options += ['--without-demo=all']
-
-        if extracommands is not None:
-            options += extracommands
 
         if snapshot:
             if database is None:
@@ -450,15 +498,9 @@ class OdooEnvironment:
                 print("ERROR: Cant recover snapshot %s." % snapshot)
                 return False
 
-        # Setup pid file
-        pid_filename = join(self.root_path, 'var', 'server.pid')
-        if not lexists(dirname(pid_filename)):
-            makedirs(dirname(pid_filename))
-        options += ['--pidfile', pid_filename]
-
         try:
-            if lexists(pid_filename):
-                pid = int(''.join(open(pid_filename).readlines()))
+            pid = self.pid()
+            if pid:
                 kill(pid, 0)
                 print("A server is running or .server_pid has not been deleted"
                       " at the end of the server.")
@@ -554,29 +596,26 @@ class OdooEnvironment:
             logger.error("Server is not installed.")
             return False
 
-        if isinstance(addons, set):
-            addons = {a.token: a for a in self.addons() if a.token in addons}
+        all_addons = {a.token: a for a in self.addons()}
 
-        if addons is None:
-            addons = dict([(addon.token, addon) for addon in self.addons()])
-        addons_set = set(addons.keys())
+        if isinstance(addons, collections.Iterable):
+            addons = {a: all_addons[a] for a in addons if a in all_addons}
+        elif addons is None:
+            addons = all_addons
 
-        to_install = addons_set
-        yet_enabled = set()
+        to_install = set(addons.keys())
+        yet_enabled = set(['base'])
         who_install = {}
         c = 0
         c_t = len(to_install)
 
+        to_install = to_install - yet_enabled
         while to_install:
             addon_name = to_install.pop()
 
-            # Ignore base addon
-            if addon_name == 'base':
-                continue
-
             # Ignore modules not available.
-            if addon_name in addons:
-                addon = addons[addon_name]
+            if addon_name in all_addons:
+                addon = all_addons[addon_name]
             else:
                 logger.error("ERROR: %s try to install %s, but is unavailable."
                              % (who_install[addon_name], addon_name))
@@ -591,18 +630,19 @@ class OdooEnvironment:
             if addon.is_enable(self):
                 logger.info("Updating %s (%i:%s)" %
                             (addon_name, len(to_install), addon.path))
+                addon.enable(self, force=True)
             else:
                 logger.info("Installing %s (%i:%s)" %
                             (addon_name, len(to_install), addon.path))
+                addon.enable(self)
+                addon.install_externals(self)
 
             yet_enabled.add(addon_name)
             to_install = to_install - yet_enabled
-            addon.enable(self, force=True)
-            addon.install_externals(self)
 
             c = c + 1
 
-        return (c_t - c)
+        return max(0, c_t - c)
 
 
 def create_environment(path, config_ori):
